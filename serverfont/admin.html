@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Saisie des Matchs</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <h2>Ajouter un Match</h2>
+    <form id="matchForm">
+        <label for="equipe1">Équipe 1:</label>
+        <input type="text" id="equipe1" required>
+        
+        <label for="equipe2">Équipe 2:</label>
+        <input type="text" id="equipe2" required>
+        
+        <label for="butsEquipe1">Buts Équipe 1:</label>
+        <input type="number" id="butsEquipe1" required>
+        
+        <label for="butsEquipe2">Buts Équipe 2:</label>
+        <input type="number" id="butsEquipe2" required>
+        
+        <button type="submit">Enregistrer</button>
+    </form>
+
+    <script src="admin.js"></script>
+</body>
+</html>

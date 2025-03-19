@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>classement de futsal</title>
+    <link rel="stylesheet" href="classement.css">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="accueil.html">Accueil</a></li>
+            <li><a href="classement.html">Classement</a></li>
+            <li><a href="users.html">Utilisateurs</a></li>
+        </ul>
+    </nav>
+    <h1>Classement</h1>
+    <table id="classement">
+        <tr>
+            <th>Équipe</th>
+            <th>Points</th>
+            <th>Buts Pour</th>
+            <th>Buts Contre</th>
+        </tr>
+    </table>
+    <script>
+        async function getClassement() {
+            const response = await fetch('http://localhost:9100/classement');
+            const classement = await response.json();
+            const table = document.getElementById('classement');
+            classement.forEach(equipe => {
+                const row = table.insertRow();
+                row.insertCell(0).textContent = equipe.nom;
+                row.insertCell(1).textContent = equipe.points;
+                row.insertCell(2).textContent = equipe.butsPour;
+                row.insertCell(3).textContent = equipe.butsContre;
+            });
+        }
+        getClassement();
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>
