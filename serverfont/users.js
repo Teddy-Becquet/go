@@ -1,5 +1,5 @@
 async function getUsers() {
-    const response = await fetch('http://localhost:9100/users');
+    const response = await fetch('http://192.168.64.175:9100/users');
     const users = await response.json();
     const table = document.getElementById('usersTable');
     users.forEach(user => {

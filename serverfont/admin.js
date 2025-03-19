@@ -9,7 +9,7 @@ document.getElementById('matchForm').addEventListener('submit', async function(e
         butsEquipe2: document.getElementById('butsEquipe2').value
     };
     
-    const response = await fetch('http://localhost:9100/matchs', {
+    const response = await fetch('http://192.168.64.175:9100/matchs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(matchData)

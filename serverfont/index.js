@@ -4,7 +4,7 @@ async function login() {
     const password = document.getElementById('password').value;
 
     try {
-        const response = await fetch('http://localhost:9100/login', {
+        const response = await fetch('http://192.168.64.175:9100/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
@@ -26,7 +26,7 @@ async function login() {
 // Fonction pour récupérer et afficher le classement
 async function fetchStandings() {
     try {
-        const response = await fetch('http://localhost:9100/classement');
+        const response = await fetch('http://192.168.64.175:9100/classement');
         
         if (!response.ok) {
             alert('Accès refusé');
