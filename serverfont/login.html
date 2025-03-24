@@ -4,16 +4,93 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connexion Admin</title>
-    <link rel="stylesheet" href="login.css">
+
 </head>
 <body>
+    <style>
+        body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f4f4f4;
+    }
+
+    .login-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+
+    input {
+        display: block;
+        width: 100%;
+        margin: 10px 0;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    button {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        padding: 10px;
+        width: 100%;
+        cursor: pointer;
+        border-radius: 5px;
+    }
+
+    button:hover {
+        background-color: #218838;
+    }
+
+    .error {
+        color: red;
+        margin-top: 10px;
+    }
+    </style>
     <div class="login-container">
-        <h2>Connexion Admin</h2>
+        <h2>Connexion</h2>
         <input type="text" id="username" placeholder="Nom d'utilisateur" required>
         <input type="password" id="password" placeholder="Mot de passe" required>
         <button onclick="login()">Se connecter</button>
         <p class="error" id="error-message"></p>
     </div>
-    <script src="login.js"></script>
+    <script>
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMessage = document.getElementById('error-message');
+            
+            errorMessage.textContent = "";
+
+            if (!username || !password) {
+                errorMessage.textContent = "Veuillez remplir tous les champs.";
+                return;
+            }
+
+            fetch('http://192.168.64.175:9100/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.accessToken) {
+                    document.cookie = `token=${data.accessToken}; path=/; Secure; HttpOnly`;
+                    window.location.href = '/admin-dashboard.html';
+                } else {
+                    errorMessage.textContent = "Identifiants incorrects.";
+                }
+            })
+            .catch(error => {
+                errorMessage.textContent = "Erreur serveur. Veuillez réessayer.";
+            });
+        }
+    </script>
 </body>
 </html>
