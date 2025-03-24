@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>Scores</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link rel='stylesheet' type='text/css' media='screen' href='main.css'>
+    <script src='main.js'></script>
+</head>
+<body>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        table {
+            width: 50%;
+            margin: 0 auto;
+            border-collapse: collapse;
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+    </style>
+    <nav>
+        <ul>
+            <li><a href="index.html">Accueil</a></li>
+            <li><a href="classement.html">Classement</a></li>
+            <li><a href="vainqueur.html">Utilisateurs</a></li>
+        </ul>
+    </nav>
+    <h1>Rencontre entre les Équipes</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Équipe</th>
+                <th>Score</th>
+                <th>Résultat</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Équipe 1</td>
+                <td>3</td>
+                <td rowspan="2">Équipe 1 gagne</td>
+            </tr>
+            <tr>
+                <td>Équipe 2</td>
+                <td>1</td>
+            </tr>
+        </tbody>
+    </table>
+
+</body>
+</html>

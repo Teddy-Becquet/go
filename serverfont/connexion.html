@@ -3,16 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion</title>
+    <title>Inscription et Connexion</title>
     <link rel="stylesheet" href="connexion.css">
 </head>
 <body>
-    <h1>Connexion</h1>
-    <form id="loginForm">
-        <input type="text" id="username" placeholder="Nom d'utilisateur" required>
-        <input type="password" id="password" placeholder="Mot de passe" required>
-        <button type="submit">Se connecter</button>
-    </form>
-    <script src="connexion.js"></script>
+    <h1>Inscription et Connexion</h1>
+    <div class="container">
+        <!-- Formulaire d'inscription -->
+        <div class="form-container">
+            <h2>Inscription</h2>
+            <form id="registerForm">
+                <input type="text" id="registerUsername" placeholder="Nom d'utilisateur" required>
+                <input type="password" id="registerPassword" placeholder="Mot de passe" required>
+                <!-- J'ai mis une balise "<br>" -->
+                <br>
+                <button type="submit">S'inscrire</button>
+            </form>
+        </div>
+
+        <!-- Formulaire de connexion -->
+        <div class="form-container">
+            <h2>Connexion</h2>
+            <form id="loginForm">
+                <input type="text" id="loginUsername" placeholder="Nom d'utilisateur" required>
+                <input type="password" id="loginPassword" placeholder="Mot de passe" required>
+                <button type="submit" src="index.html">Se connecter</button>
+                <p class="error" id="loginErrorMessage"></p>
+            </form>
+        </div>
+    </div>
+    <script>
+        // Gestion de l'inscription
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+
+            const response = await fetch('http://192.168.64.175:9100/inscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (response.ok) {
+                alert('Inscription réussie');
+                window.location.href = 'connexion.html';
+            } else {
+                alert('Erreur lors de l\'inscription');
+            }
+        });
+
+        // Gestion de la connexion
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorMessage = document.getElementById('loginErrorMessage');
+
+            errorMessage.textContent = "";
+
+            const response = await fetch('http://192.168.64.175:9100/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.accessToken) {
+                document.cookie = `token=${data.accessToken}; path=/; Secure; HttpOnly`;
+                window.location.href = '/admin-dashboard.html';
+            } else {
+                errorMessage.textContent = "Identifiants incorrects.";
+            }
+        });
+    </script>
 </body>
 </html>

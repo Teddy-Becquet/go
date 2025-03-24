@@ -1,6 +1,6 @@
 body {
     font-family: Arial, sans-serif;
-    background-color: #eef2f3;
+    background-color: #f4f4f4;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -15,7 +15,12 @@ h1 {
     margin-bottom: 20px;
 }
 
-form {
+.container {
+    display: flex;
+    gap: 20px;
+}
+
+.form-container {
     background: white;
     padding: 25px;
     border-radius: 10px;
@@ -35,12 +40,12 @@ input {
 }
 
 input:focus {
-    border-color: #007bff;
+    border-color: #28a745;
     outline: none;
 }
 
 button {
-    background-color: #007bff;
+    background-color: #28a745;
     color: white;
     padding: 12px;
     border: none;
@@ -51,18 +56,16 @@ button {
 }
 
 button:hover {
-    background-color: #0056b3;
+    background-color: #218838;
 }
 
 button:active {
     transform: scale(0.98);
 }
 
-/* Ajout d'un message d'erreur */
-#error-message {
-    margin-top: 15px;
+.error {
+    color: red;
+    margin-top: 10px;
     font-size: 14px;
-    color: #d9534f;
-    display: none;
-    text-align: center;
+
 }

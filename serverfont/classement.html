@@ -3,41 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>classement de futsal</title>
-    <link rel="stylesheet" href="classement.css">
+    <title>Classement et Utilisateurs</title>
+    <link rel="stylesheet" href="main.css">
 </head>
 <body>
     <nav>
         <ul>
-            <li><a href="accueil.html">Accueil</a></li>
+            <li><a href="index.html">Accueil</a></li>
             <li><a href="classement.html">Classement</a></li>
-            <li><a href="users.html">Utilisateurs</a></li>
+            <li><a href="vainqueur.html">Utilisateurs</a></li>
         </ul>
     </nav>
-    <h1>Classement</h1>
-    <table id="classement">
-        <tr>
-            <th>Équipe</th>
-            <th>Points</th>
-            <th>Buts Pour</th>
-            <th>Buts Contre</th>
-        </tr>
-    </table>
+
+    <!-- Section Classement -->
+    <section id="classementSection">
+        <h1>Classement</h1>
+        <table id="classement">
+            <tr>
+                <th>Équipe</th>
+                <th>Points</th>
+                <th>Buts Pour</th>
+                <th>Buts Contre</th>
+                <th>Diff de Buts</th>
+                <th>Malus</th>
+            </tr>
+        </table>
+    </section>
+
+    <!-- Section Utilisateurs -->
+    <section id="usersSection">
+        <h1>Liste des utilisateurs</h1>
+        <table id="usersTable">
+            <tr>
+                <th>Nom</th>
+                <th>Qui ?</th>
+                <th>Quoi ?</th>
+                <th>Quand ?</th>
+            </tr>
+        </table>
+    </section>
+
     <script>
+        // Récupération du classement
         async function getClassement() {
-            const response = await fetch('http://192.168.64.175:9100/classement');
-            const classement = await response.json();
-            const table = document.getElementById('classement');
-            classement.forEach(equipe => {
-                const row = table.insertRow();
-                row.insertCell(0).textContent = equipe.nom;
-                row.insertCell(1).textContent = equipe.points;
-                row.insertCell(2).textContent = equipe.butsPour;
-                row.insertCell(3).textContent = equipe.butsContre;
-            });
+            try {
+                const response = await fetch('http://192.168.64.175:9100/classement');
+                const classement = await response.json();
+                const table = document.getElementById('classement');
+                classement.forEach(equipe => {
+                    const row = table.insertRow();
+                    row.insertCell(0).textContent = equipe.nom;
+                    row.insertCell(1).textContent = equipe.points;
+                    row.insertCell(2).textContent = equipe.butsPour;
+                    row.insertCell(3).textContent = equipe.butsContre;
+                });
+            } catch (error) {
+                console.error('Erreur lors de la récupération du classement:', error);
+            }
         }
-        getClassement();
+
+        // Récupération des utilisateurs
+        async function getUsers() {
+            try {
+                const response = await fetch('http://192.168.64.175:9100/users');
+                const users = await response.json();
+                const table = document.getElementById('usersTable');
+                users.forEach(user => {
+                    const row = table.insertRow();
+                    row.insertCell(0).textContent = user.nom;
+                    row.insertCell(1).textContent = user.email;
+                    row.insertCell(2).textContent = user.role;
+                    row.insertCell(3).textContent = user.date; // Exemple pour "Quand ?"
+                });
+            } catch (error) {
+                console.error('Erreur lors de la récupération des utilisateurs:', error);
+            }
+        }
+
+        // Charger les données au chargement de la page
+        document.addEventListener("DOMContentLoaded", () => {
+            getClassement();
+            getUsers();
+        });
     </script>
-    <script src="script.js"></script>
+
 </body>
 </html>
