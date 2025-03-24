@@ -49,3 +49,6 @@ document.getElementById('logout').addEventListener('click', () => {
     // Rediriger l'utilisateur vers la page de connexion
     window.location.href = 'login.html';
 });
+
+// Appeler la fonction fetchStandings au chargement de la page
+document.addEventListener('DOMContentLoaded', fetchStandings);
