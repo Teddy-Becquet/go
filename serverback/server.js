@@ -16,13 +16,13 @@ const process = require('process');
 const { Console } = require('console');
 const { error } = require('console');
 const rateLimit = require('express-rate-limit');
-const port = 9100; 
+const port = 9000; 
 const app = express();
  
 // Limite de requêtes pour éviter le spam (5 requêtes max par minute par IP)
 const limiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 minute
-    max: 5,
+    windowMs: 1 * 60 * 10000, // 1 minute
+    max: 25,
     message: "Trop de tentatives. Réessayez plus tard.",
 });
 
@@ -52,9 +52,31 @@ app.post('/admin', async (req, res) => {
 
 // Route sécurisée pour la connexion de l'admin
 app.post('/admin/login', (req, res) => {
+    const { nom, mdp } = req.body;
+    console.log("nom: " + nom + " mdp: " + mdp);
+    
+    try {
+        bddConnection.query('INSERT INTO users (nom, mdp) VALUES (?, ?)', [nom, mdp], function (err, result) {
+            if (err) {
+                // Gestion de l'erreur en renvoyant un message d'erreur
+                return res.status(500).json({ message: "Erreur lors de l'insertion dans la base de données", error: err.message });
+            }
+            
+            // Si l'insertion réussit, on renvoie les résultats
+            res.json({ message: "Utilisateur ajouté avec succès", result: result });
+        });
+    } catch (error) {
+        // Capturer toutes les autres erreurs et renvoyer un message générique
+        res.status(500).json({ message: "Erreur interne du serveur", error: error.message });
+    }
+    });
+    
+
+
     const { username, password } = req.body;
 
-    const query = "SELECT * FROM Admin WHERE username = ?";
+    // Remplacez "username" par "nom" si la colonne s'appelle "nom"
+    const query = "SELECT * FROM Admin WHERE nom = ?";
     bddConnection.query(query, [username], async (err, results) => {
         if (err) {
             console.error(err);
@@ -73,11 +95,11 @@ app.post('/admin/login', (req, res) => {
         }
 
         // Générer un token d'authentification
-        const accessToken = jwt.sign({ username: results[0].username }, process.env.ACCESS_TOKEN_SECRET);
+        const accessToken = jwt.sign({ username: results[0].nom }, process.env.ACCESS_TOKEN_SECRET);
 
         res.json({ accessToken: accessToken });
     });
-});
+
 //------------------------
 
 // Middleware
@@ -87,7 +109,7 @@ app.use(cookieParser()); // Utilisation de cookie-parser
 
 //Connexion à la base de données
 const bddConnection = mysql.createConnection({
-    host: 'localhost',
+    host: '192.168.64.175',
     user: 'site1',
     password: 'yuzu007',
     database: 'Classement'
@@ -120,7 +142,7 @@ app.post('/inscription', async (req, res) => {
             res.status(201).send('Utilisateur enregistré');
         });
     } catch {
-        res.status(500).send();
+        res.status(500).json();
     }
 });
 
@@ -138,7 +160,7 @@ app.post('/login', (req, res) => {
                 res.cookie('token', accessToken, { httpOnly: true }); // Stocker le token dans un cookie
                 res.json({ accessToken: accessToken });
             } else {
-                res.send('Mot de passe incorrect');
+                res.json('Mot de passe incorrect'); // ici j'ai changé le status en "send" en json
             }
         } catch {
             res.status(500).send();
@@ -147,11 +169,11 @@ app.post('/login', (req, res) => {
 });
 
 // Route à emprunter dans le navigateur
-app.get('/', (req, res) => {
-    res.send('Bonjour, ceci est notre serveur (back-end), soyez les bienvenus ! ajouter un /accueil dans URL pour accéder à la page d\'accueil');
+app.get('/192.168.64.175', (req, res) => { // ici j'ai changer le "/" en "/192.168.64.175"
+    res.json('Bonjour, ceci est notre serveur (back-end), soyez les bienvenus ! ajouter un /accueil dans URL pour accéder à la page d\'accueil');
 });
 
-// Route pour la page d'accueil (protégée)
+// Route pour la page d'accueil = index.html (protégée)
 app.get('/accueil', authenticateToken, (req, res) => {
     res.json('Vous êtes dans la page d\'accueil. Soyez les bienvenus sur cette page');
 });
@@ -184,6 +206,20 @@ app.post('/equipes', (req, res) => {
   });
 });
 
+//route pour ajouter un classement 
+app.post('/classement', (req, res) => {
+    const { nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs } = req.body;
+    
+    const query = "INSERT INTO Classement (nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    bddConnection.query(query, [nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: "Erreur lors de l'ajout du classement" });
+        }
+        res.status(201).json({ message: "Classement ajouté avec succès !" });
+    });
+});
+
 // Route pour la page de classement
 app.get('/classement', (req, res) => {
     const query = `
@@ -213,13 +249,56 @@ app.get('/classement', (req, res) => {
         res.json(classement);
     });
 });
+// route pour le vainqueur du match
+app.get('/vainqueur', (req, res) => {
+    const query = `
+    SELECT 
+        m.id, 
+        m.Equipe1, 
+        m.Equipe2, 
+        m.Butequipe1, 
+        m.Butequipe2, 
+        e1.nom AS nom_equipe1, 
+        e2.nom AS nom_equipe2
+    FROM 
+        Matchs m
+    JOIN 
+        equipe e1 ON m.Equipe1 = e1.id
+    JOIN 
+        equipe e2 ON m.Equipe2 = e2.id;
+    `;
+
+    bddConnection.query(query, (error, results, fields) => {
+        if (error) throw error;
+      
+        // Traiter les résultats pour déterminer le vainqueur
+        const vainqueur = determinerVainqueur(results);
+      
+        console.log(vainqueur);
+        res.json(vainqueur);
+    });
+});
+
+// route pour ajouter un vainqueur 
+app.post('/vainqueur', (req, res) => {
+    const { nom } = req.body;
+    
+    const query = "INSERT INTO Vainqueur (nom) VALUES (?)";
+    bddConnection.query(query, [nom], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: "Erreur lors de l'ajout du vainqueur" });
+        }
+        res.status(201).json({ message: "Vainqueur ajouté avec succès !" });
+    });
+});
 
 // Démarrer le serveur
 app.listen(port, () => {
     console.log(`Le serveur est en écoute sur le port ${port}`);
 });
 
-// Récupérer les données de la table
+// Récupérer les données de la table 
 app.get('/users', (req, res) => {
     bddConnection.query('SELECT * FROM users', function (err, rows) {
         if (err) throw err;
@@ -229,11 +308,23 @@ app.get('/users', (req, res) => {
 
 // Ajouter des données dans la table 
 app.post('/users', (req, res) => {
-    let user = { equipe: 'Equipe 1', classement: 1 };
-    bddConnection.query('INSERT INTO users SET ?', user, function (err, rows) {
-        if (err) throw err;
-        res.send('Utilisateur ajouté à la base de données');
+const { nom } = req.body;
+console.log("nom: " + nom);
+
+try {
+    bddConnection.query('INSERT INTO users (nom, mdp) VALUES (?, ?)', [nom, mdp], function (err, result) {
+        if (err) {
+            // Gestion de l'erreur en renvoyant un message d'erreur
+            return res.status(500).json({ message: "Erreur lors de l'insertion dans la base de données", error: err.message });
+        }
+        
+        // Si l'insertion réussit, on renvoie les résultats
+        res.json({ message: "Utilisateur ajouté avec succès", result: result });
     });
+} catch (error) {
+    // Capturer toutes les autres erreurs et renvoyer un message générique
+    res.status(500).json({ message: "Erreur interne du serveur", error: error.message });
+}
 });
 
 // Modifier des données dans la table
@@ -276,6 +367,9 @@ function calculerClassement(matchs) {
                 id: Equipe1,
                 nom: nom_equipe1,
                 matchsJoues: 0,
+                gagne: 0,
+                perdu: 0,
+                nul: 0,
                 points: 0,
                 butsPour: 0,
                 butsContre: 0,
@@ -287,6 +381,9 @@ function calculerClassement(matchs) {
                 id: Equipe2,
                 nom: nom_equipe2,
                 matchsJoues: 0,
+                gagne: 0,
+                perdu: 0,
+                nul: 0,
                 points: 0,
                 butsPour: 0,
                 butsContre: 0,
@@ -310,13 +407,19 @@ function calculerClassement(matchs) {
         if (Butequipe1 > Butequipe2) {
             // Équipe 1 gagne
             classement[Equipe1].points += 3;
+            classement[Equipe1].gagne += 1;
+            classement[Equipe2].perdu += 1;
         } else if (Butequipe2 > Butequipe1) {
             // Équipe 2 gagne
             classement[Equipe2].points += 3;
+            classement[Equipe2].gagne += 1;
+            classement[Equipe1].perdu += 1;
         } else {
             // Match nul
             classement[Equipe1].points += 1;
             classement[Equipe2].points += 1;
+            classement[Equipe1].nul += 1;
+            classement[Equipe2].nul += 1;
         }
     });
   
@@ -330,7 +433,7 @@ function calculerClassement(matchs) {
         } else if (b.differenceButs !== a.differenceButs) {
             return b.differenceButs - a.differenceButs; // Tri par différence de buts
         } else {
-            return b.butsPour - a.butsPour; // Tri par buts pour
+            return b.butsPour - a.butsPour; // Tri par buts marqués
         }
     });
   
