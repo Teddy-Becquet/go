@@ -16,6 +16,7 @@ const process = require('process');
 const { Console } = require('console');
 const { error } = require('console');
 const rateLimit = require('express-rate-limit');
+const bodyParser = require("body-parser");
 const port = 9000; 
 const app = express();
  
@@ -65,60 +66,6 @@ app.post('/admin/users', (req, res) => {
         res.status(201).json({ message: "Utilisateur ajouté !" });
     });
 });
-
-//------------------------
-
-// Route sécurisée pour la connexion de l'admin
-app.post('/admin/login', (req, res) => {
-    const { nom, mdp } = req.body;
-    console.log("nom: " + nom + " mdp: " + mdp);
-    
-    try {
-        bddConnection.query('INSERT INTO users (nom, mdp) VALUES (?, ?)', [nom, mdp], function (err, result) {
-            if (err) {
-                // Gestion de l'erreur en renvoyant un message d'erreur
-                return res.status(500).json({ message: "Erreur lors de l'insertion dans la base de données", error: err.message });
-            }
-            
-            // Si l'insertion réussit, on renvoie les résultats
-            res.json({ message: "Utilisateur ajouté avec succès", result: result });
-        });
-    } catch (error) {
-        // Capturer toutes les autres erreurs et renvoyer un message générique
-        res.status(500).json({ message: "Erreur interne du serveur", error: error.message });
-    }
-    });
-    
-
-
-    const { username, password } = req.body;
-
-    // Remplacez "username" par "nom" si la colonne s'appelle "nom"
-    const query = "SELECT * FROM Admin WHERE nom = ?";
-    bddConnection.query(query, [username], async (err, results) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: "Erreur lors de la connexion de l'admin" });
-        }
-
-        if (results.length === 0) {
-            return res.status(404).json({ error: "Admin non trouvé" });
-        }
-
-        const hashedPassword = results[0].password;
-        const isMatch = await bcrypt.compare(password, hashedPassword);
-
-        if (!isMatch) {
-            return res.status(401).json({ error: "Mot de passe incorrect" });
-        }
-
-        // Générer un token d'authentification
-        const accessToken = jwt.sign({ username: results[0].nom }, process.env.ACCESS_TOKEN_SECRET);
-
-        res.json({ accessToken: accessToken });
-    });
-
-//------------------------
 
 // Middleware
 app.use(cors());
