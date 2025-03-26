@@ -17,7 +17,7 @@ const { Console } = require('console');
 const { error } = require('console');
 const rateLimit = require('express-rate-limit');
 const bodyParser = require("body-parser");
-const port = 9000; 
+const port = 9100; 
 const app = express();
  
 // Limite de requêtes pour éviter le spam (5 requêtes max par 2 minutes par IP)
