@@ -97,6 +97,21 @@
                 alert('Erreur lors de l\'enregistrement de l\'utilisateur');
             }
         });
+        fetch('http://192.168.64.175:9100/users', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                id: 3,
+                nom: "A",
+                prenom: "Jonas",
+                mdp: "1234"
+            })
+        })
+        .then(response => response.json())
+        .then(data => console.log("Réponse :", data))
+        .catch(error => console.error("Erreur :", error));
     </script>
 </body>
 </html>

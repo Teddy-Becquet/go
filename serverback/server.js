@@ -19,17 +19,17 @@ const rateLimit = require('express-rate-limit');
 const port = 9000; 
 const app = express();
  
-// Limite de requêtes pour éviter le spam (5 requêtes max par minute par IP)
+// Limite de requêtes pour éviter le spam (5 requêtes max par 2 minutes par IP)
 const limiter = rateLimit({
-    windowMs: 1 * 60 * 10000, // 1 minute
+    windowMs: 1 * 120 * 10000, // 2 minutes
     max: 25,
-    message: "Trop de tentatives. Réessayez plus tard.",
+    message: "hahahahah!!!! Trop de tentatives. Réessayez plus tard.",
 });
 
 app.use(limiter); // Appliquer à toutes les routes
 
 // Route sécurisée pour l'ajout d'admin avec hachage du mot de passe
-app.post('/admin', async (req, res) => {
+app.post('/admin/connexion', async (req, res) => {
     const { username, password } = req.body;
 
     try {
@@ -46,6 +46,24 @@ app.post('/admin', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: "Erreur lors du hachage du mot de passe" });
     }
+});
+
+// Route POST pour insérer un utilisateur
+app.post('/admin/users', (req, res) => {
+    const { id, nom, prenom, mdp } = req.body;
+
+    if (!id || !nom || !prenom || !mdp) {
+        return res.status(400).json({ message: "Données manquantes" });
+    }
+
+    const sql = "INSERT INTO utilisateurs (id, nom, prenom, mdp) VALUES (?, ?, ?, ?)";
+    db.query(sql, [id, nom, prenom, mdp], (err, result) => {
+        if (err) {
+            console.error("Erreur lors de l'insertion :", err);
+            return res.status(500).json({ message: "Erreur serveur" });
+        }
+        res.status(201).json({ message: "Utilisateur ajouté !" });
+    });
 });
 
 //------------------------
@@ -249,6 +267,7 @@ app.get('/classement', (req, res) => {
         res.json(classement);
     });
 });
+
 // route pour le vainqueur du match
 app.get('/vainqueur', (req, res) => {
     const query = `
