@@ -27,17 +27,19 @@ const limiter = rateLimit({
     message: "hahahahah!!!! Trop de tentatives. Réessayez plus tard.",
 });
 
-app.use(limiter); // Appliquer à toutes les routes
-
 // Route sécurisée pour l'ajout d'admin avec hachage du mot de passe
 app.post('/admin/connexion', async (req, res) => {
-    const { username, password } = req.body;
+    const { nom, mdp } = req.body;
+
+    if (!nom || !mdp) {
+        return res.status(400).json({ error: "Tous les champs sont requis." });
+    }
 
     try {
-        const hashedPassword = await bcrypt.hash(password, 10); // Hachage du mot de passe
+        const hashedmdp = await bcrypt.hash(mdp, 10); // Hachage du mot de passe
 
-        const query = "INSERT INTO Admin (username, password) VALUES (?, ?)";
-        bddConnection.query(query, [username, hashedPassword], (err, result) => {
+        const query = "INSERT INTO Admin (nom, mdp) VALUES (?, ?)";
+        bddConnection.query(query, [nom, hashedmdp], (err, result) => {
             if (err) {
                 console.error(err);
                 return res.status(500).json({ error: "Erreur lors de l'ajout de l'admin" });
@@ -45,8 +47,21 @@ app.post('/admin/connexion', async (req, res) => {
             res.status(201).json({ message: "Admin ajouté avec succès !" });
         });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: "Erreur lors du hachage du mot de passe" });
     }
+});
+
+// Route GET pour récupérer les utilisateurs
+app.get('/admin/users', (req, res) => {
+    const sql = "SELECT * FROM utilisateurs";
+    db.query(sql, (err, result) => {
+        if (err) {
+            console.error("Erreur lors de la récupération des utilisateurs :", err);
+            return res.status(500).json({ message: "Erreur serveur" });
+        }
+        res.status(200).json(result);
+    });
 });
 
 // Route POST pour insérer un utilisateur
@@ -67,10 +82,56 @@ app.post('/admin/users', (req, res) => {
     });
 });
 
+// Route GET pour récupérer un utilisateur par ID
+app.get('/admin/users/:id', (req, res) => {
+    const id = req.params.id;
+    const sql = "SELECT * FROM utilisateurs WHERE id = ?";
+    db.query(sql, [id], (err, result) => {
+        if (err) {
+            console.error("Erreur lors de la récupération de l'utilisateur :", err);
+            return res.status(500).json({ message: "Erreur serveur" });
+        }
+        if (result.length === 0) {
+            return res.status(404).json({ message: "Utilisateur non trouvé" });
+        }
+        res.status(200).json(result[0]);
+    });
+});
+
+// Route PUT pour mettre à jour un utilisateur
+app.put('/admin/users/:id', (req, res) => {
+    const id = req.params.id;
+    const { nom, prenom, mdp } = req.body;
+
+    const sql = "UPDATE utilisateurs SET nom = ?, prenom = ?, mdp = ? WHERE id = ?";
+    db.query(sql, [nom, prenom, mdp, id], (err, result) => {
+        if (err) {
+            console.error("Erreur lors de la mise à jour de l'utilisateur :", err);
+            return res.status(500).json({ message: "Erreur serveur" });
+        }
+        res.status(200).json({ message: "Utilisateur mis à jour !" });
+    });
+});
+
+// Route DELETE pour supprimer un utilisateur
+app.delete('/admin/users/:id', (req, res) => {
+    const id = req.params.id;
+    const sql = "DELETE FROM utilisateurs WHERE id = ?";
+    db.query(sql, [id], (err, result) => {
+        if (err) {
+            console.error("Erreur lors de la suppression de l'utilisateur :", err);
+            return res.status(500).json({ message: "Erreur serveur" });
+        }
+        res.status(200).json({ message: "Utilisateur supprimé !" });
+    });
+});
+ 
 // Middleware
 app.use(cors());
+app.use(express.urlencoded({ extended: true })); 
+app.use(cookieParser());
 app.use(express.json());
-app.use(cookieParser()); // Utilisation de cookie-parser
+app.use(limiter); // Appliquer à toutes les routes
 
 //Connexion à la base de données
 const bddConnection = mysql.createConnection({

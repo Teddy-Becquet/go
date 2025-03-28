@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestion des Médecins</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    form {
+      margin-bottom: 20px;
+    }
+    input {
+      margin: 5px 0;
+      padding: 8px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px 15px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+  </style>
+</head>
+<body>
+  <h1>Gestion des Médecins</h1>
+
+  <h2>Ajouter un Médecin</h2>
+  <form id="addMedecinForm">
+    <input type="text" id="nom" placeholder="Nom" required>
+    <input type="text" id="prenom" placeholder="Prénom" required>
+    <button type="submit">Ajouter</button>
+  </form>
+
+  <h2>Liste des Médecins</h2>
+  <button id="refreshButton">Actualiser la liste</button>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nom</th>
+        <th>Prénom</th>
+      </tr>
+    </thead>
+    <tbody id="medecinList">
+      <!-- Les médecins seront affichés ici -->
+    </tbody>
+  </table>
+
+  <script>
+    const apiUrl = 'http://192.168.64.175:8080';
+
+    // Ajouter un médecin
+    document.getElementById('addMedecinForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nom = document.getElementById('nom').value;
+      const prenom = document.getElementById('prenom').value;
+
+      try {
+        const response = await fetch(`${apiUrl}/AddMedecin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ nom, prenom }),
+        });
+
+        if (response.ok) {
+          alert('Médecin ajouté avec succès');
+          document.getElementById('addMedecinForm').reset();
+          fetchMedecins();
+        } else {
+          const error = await response.json();
+          alert(`Erreur: ${error.error}`);
+        }
+      } catch (err) {
+        alert('Erreur de connexion au serveur');
+      }
+    });
+
+    // Récupérer et afficher la liste des médecins
+    async function fetchMedecins() {
+      try {
+        const response = await fetch(`${apiUrl}/AddMedecin`);
+        if (response.ok) {
+          const medecins = await response.json();
+          const medecinList = document.getElementById('medecinList');
+          medecinList.innerHTML = '';
+          medecins.forEach((medecin) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${medecin.id}</td>
+              <td>${medecin.nom}</td>
+              <td>${medecin.prenom}</td>
+            `;
+            medecinList.appendChild(row);
+          });
+        } else {
+          alert('Erreur lors de la récupération des médecins');
+        }
+      } catch (err) {
+        alert('Erreur de connexion au serveur');
+      }
+    }
+
+    // Actualiser la liste des médecins
+    document.getElementById('refreshButton').addEventListener('click', fetchMedecins);
+
+    // Charger la liste des médecins au démarrage
+    fetchMedecins();
+  </script>
+</body>
+</html>

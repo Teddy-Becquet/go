@@ -1,0 +1,1 @@
+ici j'explique index.html c'est le front end de la route de AddMedecin.
