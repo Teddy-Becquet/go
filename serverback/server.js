@@ -64,7 +64,7 @@ app.get('/', (req, res) => {
     res.json('Bonjour, ceci est notre serveur (back-end), soyez les bienvenus ! ajouter un /accueil dans URL pour accéder à la page d\'accueil');
 });
 
-// Route pour l'inscription
+// Route pour l'inscription  *********************** errrrreur
 app.post('/inscription', async (req, res) => {
     try {
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
@@ -78,7 +78,7 @@ app.post('/inscription', async (req, res) => {
     }
 });
 
-// Route pour la connexion
+// Route pour la connexion   *********************** errrrreur
 app.post('/login', (req, res) => {
     const username = req.body.username;
     const password = req.body.password;
@@ -92,7 +92,7 @@ app.post('/login', (req, res) => {
                 res.cookie('token', accessToken, { httpOnly: true }); // Stocker le token dans un cookie
                 res.json({ accessToken: accessToken });
             } else {
-                res.json('Mot de passe incorrect'); // ici j'ai changé le status en "send" en json
+                res.send('Mot de passe incorrect');
             }
         } catch {
             res.status(500).send();
@@ -100,7 +100,7 @@ app.post('/login', (req, res) => {
     });
 });
 
-// Route sécurisée pour l'ajout d'admin avec hachage du mot de passe
+// Route sécurisée pour l'ajout d'admin avec hachage du mot de passe   *********************** errrrreur
 app.post('/admin/connexion', async (req, res) => {
     const { nom, mdp } = req.body;
 
@@ -125,7 +125,7 @@ app.post('/admin/connexion', async (req, res) => {
     }
 });
 
-// Route GET pour récupérer les utilisateurs
+// Route GET pour récupérer les utilisateurs *********************** errrrreur
 app.get('/admin/users', (req, res) => {
     const sql = "SELECT * FROM utilisateurs";
     db.query(sql, (err, result) => {
@@ -199,12 +199,37 @@ app.delete('/admin/users/:id', (req, res) => {
     });
 });
 
-// Route pour la page d'accueil = index.html (protégée)
+// Route pour la page d'accueil = index.html (protégée)  *********************** errrrreur car Unauthorized
 app.get('/accueil', authenticateToken, (req, res) => {
     res.json('Vous êtes dans la page d\'accueil. Soyez les bienvenus sur cette page');
 });
 
-//route pour les matchs
+//route pour les matchs 
+app.get('/matchs', (req, res) => {
+    const query = `
+    SELECT 
+        m.id, 
+        m.Equipe1, 
+        m.Equipe2, 
+        m.Butequipe1, 
+        m.Butequipe2, 
+        e1.nom AS nom_equipe1, 
+        e2.nom AS nom_equipe2
+    FROM 
+        Matchs m
+    JOIN 
+        equipe e1 ON m.Equipe1 = e1.id
+    JOIN 
+        equipe e2 ON m.Equipe2 = e2.id;
+    `;
+
+    bddConnection.query(query, (error, results, fields) => {
+        if (error) throw error;
+        res.json(results);
+    });
+});
+
+//route pour ajouter un matchs   ******************** errrrreur  car seule le message de erreur s'affiche
 app.post('/matchs', (req, res) => {
   const { equipe1, equipe2, butsEquipe1, butsEquipe2 } = req.body;
   
@@ -218,8 +243,17 @@ app.post('/matchs', (req, res) => {
   });
 });
 
-//route pour les equipes
-app.post('/equipes', (req, res) => {
+//route pour les equipes    ******************** errrrreur  car me fait sortir du sever
+app.get('/equipes', (req, res) => {
+    const query = "SELECT * FROM Equipe";
+    bddConnection.query(query, (error, results, fields) => {
+        if (error) throw error;
+        res.json(results);
+    });
+});
+
+//route pour les equipes   ******************** errrrreur  car seule le message de erreur s'affiche
+app.post('/admin/equipes', (req, res) => {
   const { nom } = req.body;
   
   const query = "INSERT INTO Equipe (nom) VALUES (?)";
@@ -232,8 +266,48 @@ app.post('/equipes', (req, res) => {
   });
 });
 
+//route pour les equipes en fonction de l'id
+app.get('/equipes/:id', (req, res) => {
+    const id = req.params.id;
+    const query = "SELECT * FROM Equipe WHERE id = ?";
+    bddConnection.query(query, [id], (error, results, fields) => {
+        if (error) throw error;
+        if (results.length === 0) {
+            return res.status(404).json({ message: "Equipe non trouvée" });
+        }
+        res.json(results[0]);
+    });
+});
+
+//route pour modifier une equipe en fonction de l'id
+app.put('/admin/equipes/:id', (req, res) => {
+    const id = req.params.id;
+    const { nom } = req.body;
+    const query = "UPDATE Equipe SET nom = ? WHERE id = ?";
+    bddConnection.query(query, [nom, id], (error, results, fields) => {
+        if (error) throw error;
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ message: "Equipe non trouvée" });
+        }
+        res.json({ message: "Equipe mise à jour avec succès !" });
+    });
+});
+
+//route pour supprimer une equipe en fonction de l'id
+app.delete('/admin/equipes/:id', (req, res) => {
+    const id = req.params.id;
+    const query = "DELETE FROM Equipe WHERE id = ?";
+    bddConnection.query(query, [id], (error, results, fields) => {
+        if (error) throw error;
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ message: "Equipe non trouvée" });
+        }
+        res.json({ message: "Equipe supprimée avec succès !" });
+    });
+});
+
 //route pour ajouter un classement 
-app.post('/classement', (req, res) => {
+app.post('/admin/classement', (req, res) => {
     const { nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs } = req.body;
     
     const query = "INSERT INTO Classement (nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -306,7 +380,7 @@ app.get('/vainqueur', (req, res) => {
     });
 });
 
-// route pour ajouter un vainqueur 
+// route pour ajouter un vainqueur  ********** ***************** errrrreur  car seule le message de erreur s'affiche
 app.post('/vainqueur', (req, res) => {
     const { nom } = req.body;
     
@@ -317,6 +391,83 @@ app.post('/vainqueur', (req, res) => {
             return res.status(500).json({ error: "Erreur lors de l'ajout du vainqueur" });
         }
         res.status(201).json({ message: "Vainqueur ajouté avec succès !" });
+    });
+});
+// Route pour la page de classement
+app.get('/classement', (req, res) => {
+    const query = `
+    SELECT 
+        m.id, 
+        m.Equipe1, 
+        m.Equipe2, 
+        m.Butequipe1, 
+        m.Butequipe2, 
+        e1.nom AS nom_equipe1, 
+        e2.nom AS nom_equipe2
+    FROM 
+        Matchs m
+    JOIN 
+        equipe e1 ON m.Equipe1 = e1.id
+    JOIN 
+        equipe e2 ON m.Equipe2 = e2.id;
+    `;
+
+    bddConnection.query(query, (error, results, fields) => {
+        if (error) throw error;
+      
+        // Traiter les résultats pour calculer le classement
+        const classement = calculerClassement(results);
+      
+        console.log(classement);
+        res.json(classement);
+    });
+});
+
+// Route pour déterminer le vainqueur
+function determinerVainqueur(matchs) {
+    const vainqueurs = [];
+
+    matchs.forEach(match => {
+        const { Equipe1, Equipe2, Butequipe1, Butequipe2, nom_equipe1, nom_equipe2 } = match;
+
+        if (Butequipe1 > Butequipe2) {
+            vainqueurs.push({ vainqueur: nom_equipe1 });
+        } else if (Butequipe2 > Butequipe1) {
+            vainqueurs.push({ vainqueur: nom_equipe2 });
+        } else {
+            vainqueurs.push({ vainqueur: "Match nul" });
+        }
+    });
+
+    return vainqueurs;
+}
+// Route pour la page de classement
+app.get('/classement', (req, res) => {
+    const query = `
+    SELECT 
+        m.id, 
+        m.Equipe1, 
+        m.Equipe2, 
+        m.Butequipe1, 
+        m.Butequipe2, 
+        e1.nom AS nom_equipe1, 
+        e2.nom AS nom_equipe2
+    FROM 
+        Matchs m
+    JOIN 
+        equipe e1 ON m.Equipe1 = e1.id
+    JOIN 
+        equipe e2 ON m.Equipe2 = e2.id;
+    `;
+
+    bddConnection.query(query, (error, results, fields) => {
+        if (error) throw error;
+      
+        // Traiter les résultats pour calculer le classement
+        const classement = calculerClassement(results);
+      
+        console.log(classement);
+        res.json(classement);
     });
 });
 
@@ -335,8 +486,22 @@ app.get('/users', (req, res) => {
 
 // Ajouter des données dans la table 
 app.post('/users', (req, res) => {
-const { nom } = req.body;
-console.log("nom: " + nom);
+const { nom, mdp } = req.body;
+console.log("nom: " + nom + " mdp: " + mdp);
+
+
+////////////////////////////////////////////////////////////////////////////////////
+
+// Vérification des données reçues
+if (!nom || !mdp) {
+    return res.status(400).json({ message: "Nom et mot de passe requis" });
+}
+// Hachage du mot de passe
+const hashedPassword = await
+bcrypt.hash(mdp, 10);
+
+///////////////////////////////////////////////////////////////////////////////////
+
 
 try {
     bddConnection.query('INSERT INTO users (nom, mdp) VALUES (?, ?)', [nom, mdp], function (err, result) {
