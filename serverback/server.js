@@ -284,21 +284,21 @@ app.get('/matchs', (req, res) => {
 //route pour ajouter un matchs   ******************** errrrreur  car seule le message de erreur s'affiche
 app.post('/matchs', (req, res) => {
     const { equipe1, equipe2, butsEquipe1, butsEquipe2 } = req.body;
-
-    console.log("Données reçues :", req.body); // Debug
-    
+    console.log("Données reçues :", JSON.stringify(req.body, null, 2)); // Debug
     if (!equipe1 || !equipe2 || butsEquipe1 === undefined || butsEquipe2 === undefined) {
         return res.status(400).json({ error: "Toutes les informations sont requises" });
     }
-
+    // Vérification que les buts sont bien des nombres entiers
+    if (!Number.isInteger(butsEquipe1) || !Number.isInteger(butsEquipe2)) {
+        return res.status(400).json({ error: "Les buts doivent être des nombres entiers" });
+    }
     const query = "INSERT INTO Matchs (Equipe1, Equipe2, Butequipe1, Butequipe2) VALUES (?, ?, ?, ?)";
-    
     bddConnection.query(query, [equipe1, equipe2, butsEquipe1, butsEquipe2], (err, result) => {
         if (err) {
-            console.error("Erreur MySQL :", err);
-            return res.status(500).json({ error: "Erreur lors de l'ajout du match" });
+            console.error("Erreur MySQL :", err.code, err.sqlMessage);
+            return res.status(500).json({ error: "Erreur lors de l'ajout du match", details: err.sqlMessage });
         }
-        res.status(201).json({ message: "Match ajouté avec succès !" });
+        res.status(201).json({ message: "Match ajouté avec succès !", matchId: result.insertId });
     });
 });
 
@@ -313,30 +313,43 @@ app.get('/equipes', (req, res) => {
 
 //route pour les equipes   ******************** errrrreur  car seule le message de erreur s'affiche
 app.post('/admin/equipes', (req, res) => {
-  const { nom } = req.body;
-  
-  const query = "INSERT INTO equipe (nom) VALUES (?)";
-  bddConnection.query(query, [nom], (err, result) => {
-      if (err) {
-          console.error(err);
-          return res.status(500).json({ error: "Erreur lors de l'ajout de l'équipe" });
-      }
-      res.status(201).json({ message: "Equipe ajoutée avec succès !" });
+    const { nom } = req.body;
+    console.log("Données reçues pour l'équipe :", req.body); // Debug
+    // Vérification que le nom est fourni
+    if (!nom || typeof nom !== 'string' || nom.trim() === '') {
+      return res.status(400).json({ error: "Le nom de l'équipe est requis et doit être une chaîne de caractères valide." });
+    }
+    const query = "INSERT INTO equipe (nom) VALUES (?)";
+    bddConnection.query(query, [nom], (err, result) => {
+        if (err) {
+            console.error("Erreur MySQL lors de l'ajout de l'équipe :", err);
+            return res.status(500).json({ error: "Erreur lors de l'ajout de l'équipe" });
+        }
+        res.status(201).json({ message: "Equipe ajoutée avec succès !" });
+    });
   });
-});
-
+  
 //route pour les equipes en fonction de l'id
 app.get('/equipes/:id', (req, res) => {
     const id = req.params.id;
+
+    // Vérification que l'ID est un nombre valide
+    if (isNaN(id)) {
+        return res.status(400).json({ message: "ID invalide. L'ID doit être un nombre." });
+    }
     const query = "SELECT * FROM Equipe WHERE id = ?";
     bddConnection.query(query, [id], (error, results, fields) => {
-        if (error) throw error;
+        if (error) {
+            console.error("Erreur MySQL :", error);
+            return res.status(500).json({ message: "Erreur serveur lors de la récupération de l'équipe" });
+        }      
         if (results.length === 0) {
             return res.status(404).json({ message: "Equipe non trouvée" });
         }
         res.json(results[0]);
     });
 });
+
 
 //route pour modifier une equipe en fonction de l'id
 app.put('/admin/equipes/:id', (req, res) => {
