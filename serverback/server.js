@@ -17,6 +17,7 @@ const { Console } = require('console');
 const { error } = require('console');
 const rateLimit = require('express-rate-limit');
 const bodyParser = require("body-parser");
+const pm2 = require("pm2");
 const port = 9100; 
 const app = express();
  
@@ -78,36 +79,43 @@ app.post('/inscription', async (req, res) => {
     }
 });
 
-// Route pour la connexion   *********************** errrrreur
-app.post('/login', (req, res) => {
-    const username = req.body.username;
-    const password = req.body.password;
-    bddConnection.query('SELECT * FROM users WHERE username = ?', [username], async function (err, rows) {
-        if (err) throw err;
+// Route pour la déconnexion
+app.post('/logout', (req, res) => {
+    res.clearCookie('token'); // Supprimer le cookie de session
+    res.json('Déconnexion réussie');
+});
+
+// Route pour la connexion  
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).send('Veuillez remplir tous les champs.');
+    bddConnection.query('SELECT * FROM users WHERE username = ?', [username], async (err, rows) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Erreur serveur');
+        }
         if (rows.length === 0) return res.status(400).send('Utilisateur non trouvé');
         try {
-            if (await bcrypt.compare(password, rows[0].password)) {
-                const user = { name: username };
-                const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET);
-                res.cookie('token', accessToken, { httpOnly: true }); // Stocker le token dans un cookie
-                res.json({ accessToken: accessToken });
-            } else {
-                res.send('Mot de passe incorrect');
-            }
-        } catch {
-            res.status(500).send();
+            const match = await bcrypt.compare(password, rows[0].password);
+            if (!match) return res.status(401).send('Mot de passe incorrect');
+            const user = { name: username };
+            const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+            res.cookie('token', accessToken, { httpOnly: true, secure: true, sameSite: 'Strict' });
+            res.json({ accessToken });
+        } catch (error) {
+            console.error(error);
+            res.status(500).send('Erreur lors de l\'authentification');
         }
     });
 });
 
-// Route sécurisée pour l'ajout d'admin avec hachage du mot de passe   *********************** errrrreur
+// Route sécurisée pour l'ajout d'admin avec hachage du mot de passe 
 app.post('/admin/connexion', async (req, res) => {
     const { nom, mdp } = req.body;
 
     if (!nom || !mdp) {
         return res.status(400).json({ error: "Tous les champs sont requis." });
     }
-
     try {
         const hashedmdp = await bcrypt.hash(mdp, 10); // Hachage du mot de passe
 
@@ -127,12 +135,22 @@ app.post('/admin/connexion', async (req, res) => {
 
 // Route GET pour récupérer les utilisateurs *********************** errrrreur
 app.get('/admin/users', (req, res) => {
-    const sql = "SELECT * FROM utilisateurs";
-    db.query(sql, (err, result) => {
+    console.log("Requête reçue pour récupérer les utilisateurs"); // Debug   
+    if (!bddConnection) {
+        console.error("Erreur : la connexion à la base de données n'est pas établie.");
+        return res.status(500).json({ message: "Erreur serveur : connexion DB manquante" });
+    }
+
+    const sql = "SELECT * FROM users";
+    bddConnection.query(sql, (err, result) => {
         if (err) {
-            console.error("Erreur lors de la récupération des utilisateurs :", err);
+            console.error("Erreur SQL :", err);
             return res.status(500).json({ message: "Erreur serveur" });
         }
+        if (result.length === 0) {
+            return res.status(404).json({ message: "Aucun utilisateur trouvé" });
+        }
+        console.log("Utilisateurs récupérés :", result); // Debug
         res.status(200).json(result);
     });
 });
@@ -144,9 +162,8 @@ app.post('/admin/users', (req, res) => {
     if (!id || !nom || !prenom || !mdp) {
         return res.status(400).json({ message: "Données manquantes" });
     }
-
-    const sql = "INSERT INTO utilisateurs (id, nom, prenom, mdp) VALUES (?, ?, ?, ?)";
-    db.query(sql, [id, nom, prenom, mdp], (err, result) => {
+    const sql = "INSERT INTO users (id, nom, prenom, mdp) VALUES (?, ?, ?, ?)";
+    bddConnection.query(sql, [id, nom, prenom, mdp], (err, result) => {
         if (err) {
             console.error("Erreur lors de l'insertion :", err);
             return res.status(500).json({ message: "Erreur serveur" });
@@ -158,12 +175,19 @@ app.post('/admin/users', (req, res) => {
 // Route GET pour récupérer un utilisateur par ID
 app.get('/admin/users/:id', (req, res) => {
     const id = req.params.id;
-    const sql = "SELECT * FROM utilisateurs WHERE id = ?";
-    db.query(sql, [id], (err, result) => {
+    console.log("ID reçu :", id); // Debug
+    if (!bddConnection) {
+        console.error("Erreur : connexion à la base de données manquante.");
+        return res.status(500).json({ message: "Erreur serveur : connexion DB manquante" });
+    }
+    const sql = "SELECT * FROM users WHERE id = ?";
+    console.log("Requête SQL exécutée :", sql, "avec ID :", id); // Debug
+    bddConnection.query(sql, [id], (err, result) => {
         if (err) {
-            console.error("Erreur lors de la récupération de l'utilisateur :", err);
+            console.error("Erreur SQL :", err);
             return res.status(500).json({ message: "Erreur serveur" });
         }
+        console.log("Résultat MySQL :", result); // Debug
         if (result.length === 0) {
             return res.status(404).json({ message: "Utilisateur non trouvé" });
         }
@@ -171,26 +195,54 @@ app.get('/admin/users/:id', (req, res) => {
     });
 });
 
-// Route PUT pour mettre à jour un utilisateur
+// Route PUT pour mettre à jour un utilisateur     ***************** errrrreur
 app.put('/admin/users/:id', (req, res) => {
     const id = req.params.id;
     const { nom, prenom, mdp } = req.body;
-
-    const sql = "UPDATE utilisateurs SET nom = ?, prenom = ?, mdp = ? WHERE id = ?";
-    db.query(sql, [nom, prenom, mdp, id], (err, result) => {
+    // Vérifier si l'ID est valide (uniquement si c'est un entier)
+    if (isNaN(id)) {
+        return res.status(400).json({ message: "ID invalide" });
+    }
+    // Vérifier si tous les champs sont fournis
+    if (!nom || !prenom || !mdp) {
+        return res.status(400).json({ message: "Tous les champs sont obligatoires" });
+    }
+    // Vérifier si l'utilisateur existe
+    bddConnection.query("SELECT * FROM users WHERE id = ?", [id], (err, result) => {
         if (err) {
-            console.error("Erreur lors de la mise à jour de l'utilisateur :", err);
+            console.error("Erreur SQL :", err);
             return res.status(500).json({ message: "Erreur serveur" });
         }
-        res.status(200).json({ message: "Utilisateur mis à jour !" });
+        if (result.length === 0) {
+            return res.status(404).json({ message: "Utilisateur non trouvé" });
+        }
+        console.log("Utilisateur trouvé :", result[0]); // Debug
+        // Hachage du mot de passe
+        bcrypt.hash(mdp, 10, (err, hash) => {
+            if (err) {
+                console.error("Erreur lors du hash du mot de passe :", err);
+                return res.status(500).json({ message: "Erreur serveur" });
+            }
+            const sql = "UPDATE users SET nom = ?, prenom = ?, mdp = ? WHERE id = ?";
+            bddConnection.query(sql, [nom, prenom, hash, id], (err, result) => {
+                if (err) {
+                    console.error("Erreur lors de la mise à jour de l'utilisateur :", err);
+                    return res.status(500).json({ message: "Erreur serveur" });
+                }
+                if (result.affectedRows === 0) {
+                    return res.status(400).json({ message: "Aucune modification effectuée" });
+                }
+                res.status(200).json({ message: "Utilisateur mis à jour avec succès !" });
+            });
+        });
     });
 });
 
 // Route DELETE pour supprimer un utilisateur
 app.delete('/admin/users/:id', (req, res) => {
     const id = req.params.id;
-    const sql = "DELETE FROM utilisateurs WHERE id = ?";
-    db.query(sql, [id], (err, result) => {
+    const sql = "DELETE FROM users WHERE id = ?";
+    bddConnection.query(sql, [id], (err, result) => {
         if (err) {
             console.error("Erreur lors de la suppression de l'utilisateur :", err);
             return res.status(500).json({ message: "Erreur serveur" });
@@ -231,21 +283,28 @@ app.get('/matchs', (req, res) => {
 
 //route pour ajouter un matchs   ******************** errrrreur  car seule le message de erreur s'affiche
 app.post('/matchs', (req, res) => {
-  const { equipe1, equipe2, butsEquipe1, butsEquipe2 } = req.body;
-  
-  const query = "INSERT INTO Matchs (Equipe1, Equipe2, Butequipe1, Butequipe2) VALUES (?, ?, ?, ?)";
-  bddConnection.query(query, [equipe1, equipe2, butsEquipe1, butsEquipe2], (err, result) => {
-      if (err) {
-          console.error(err);
-          return res.status(500).json({ error: "Erreur lors de l'ajout du match" });
-      }
-      res.status(201).json({ message: "Match ajouté avec succès !" });
-  });
+    const { equipe1, equipe2, butsEquipe1, butsEquipe2 } = req.body;
+
+    console.log("Données reçues :", req.body); // Debug
+    
+    if (!equipe1 || !equipe2 || butsEquipe1 === undefined || butsEquipe2 === undefined) {
+        return res.status(400).json({ error: "Toutes les informations sont requises" });
+    }
+
+    const query = "INSERT INTO Matchs (Equipe1, Equipe2, Butequipe1, Butequipe2) VALUES (?, ?, ?, ?)";
+    
+    bddConnection.query(query, [equipe1, equipe2, butsEquipe1, butsEquipe2], (err, result) => {
+        if (err) {
+            console.error("Erreur MySQL :", err);
+            return res.status(500).json({ error: "Erreur lors de l'ajout du match" });
+        }
+        res.status(201).json({ message: "Match ajouté avec succès !" });
+    });
 });
 
 //route pour les equipes    ******************** errrrreur  car me fait sortir du sever
 app.get('/equipes', (req, res) => {
-    const query = "SELECT * FROM Equipe";
+    const query = "SELECT * FROM equipe";
     bddConnection.query(query, (error, results, fields) => {
         if (error) throw error;
         res.json(results);
@@ -256,7 +315,7 @@ app.get('/equipes', (req, res) => {
 app.post('/admin/equipes', (req, res) => {
   const { nom } = req.body;
   
-  const query = "INSERT INTO Equipe (nom) VALUES (?)";
+  const query = "INSERT INTO equipe (nom) VALUES (?)";
   bddConnection.query(query, [nom], (err, result) => {
       if (err) {
           console.error(err);
@@ -306,7 +365,7 @@ app.delete('/admin/equipes/:id', (req, res) => {
     });
 });
 
-//route pour ajouter un classement 
+//route pour ajouter un classement   ***************** errrrreur  car seule le message de erreur s'affiche
 app.post('/admin/classement', (req, res) => {
     const { nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs } = req.body;
     
@@ -314,7 +373,7 @@ app.post('/admin/classement', (req, res) => {
     bddConnection.query(query, [nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs], (err, result) => {
         if (err) {
             console.error(err);
-            return res.status(500).json({ error: "Erreur lors de l'ajout du classement" });
+            return res.status(500).json({ error: "Erreur lors de l'ajout du Classement" });
         }
         res.status(201).json({ message: "Classement ajouté avec succès !" });
     });
@@ -380,7 +439,7 @@ app.get('/vainqueur', (req, res) => {
     });
 });
 
-// route pour ajouter un vainqueur  ********** ***************** errrrreur  car seule le message de erreur s'affiche
+// route pour ajouter un vainqueur  ***************** errrrreur  car seule le message de erreur s'affiche
 app.post('/vainqueur', (req, res) => {
     const { nom } = req.body;
     
