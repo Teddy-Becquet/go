@@ -62,7 +62,7 @@
                 equipe2: document.getElementById('equipe2').value
             };
             
-            const response = await fetch('http://192.168.64.175:9100/matchs', {
+            const response = await fetch('http://localhost:9100/matchs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(matchData)
@@ -84,7 +84,7 @@
                 username: document.getElementById('username').value,
             };
             
-            const response = await fetch('http://192.168.64.175:9100/users', {
+            const response = await fetch('http://localhost:9100/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(userData)
@@ -97,7 +97,7 @@
                 alert('Erreur lors de l\'enregistrement de l\'utilisateur');
             }
         });
-        fetch('http://192.168.64.175:9100/users', {
+        fetch('http://localhost:9100/users', {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"

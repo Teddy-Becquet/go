@@ -21,9 +21,9 @@ const pm2 = require("pm2");
 const port = 9100; 
 const app = express();
  
-// Limite de requêtes pour éviter le spam (5 requêtes max par 2 minutes par IP)
+// Limite de requêtes pour éviter le spam (5 requêtes max par 1 minute par IP)
 const limiter = rateLimit({
-    windowMs: 1 * 120 * 10000, // 2 minutes
+    windowMs: 1 * 60 * 10000, // 1 minute
     max: 25,
     message: "hahahahah!!!! Trop de tentatives. Réessayez plus tard.",
 });
@@ -49,7 +49,7 @@ function authenticateToken(req, res, next) {
 
 //Connexion à la base de données
 const bddConnection = mysql.createConnection({
-    host: '192.168.64.175',
+    host: 'localhost',
     user: 'site1',
     password: 'yuzu007',
     database: 'Classements'

@@ -61,7 +61,7 @@
         // Récupération du classement
         async function getClassement() {
             try {
-                const response = await fetch('http://192.168.64.175:9100/classement');
+                const response = await fetch('http://localhost:9100/classement');
                 const classement = await response.json();
                 const table = document.getElementById('classement');
                 classement.forEach(equipe => {
@@ -79,7 +79,7 @@
         // Récupération des utilisateurs
         async function getUsers() {
             try {
-                const response = await fetch('http://192.168.64.175:9100/users');
+                const response = await fetch('http://localhost:9100/users');
                 const users = await response.json();
                 const table = document.getElementById('usersTable');
                 users.forEach(user => {
