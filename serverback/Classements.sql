@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Hôte : 127.0.0.1
--- Généré le : mar. 22 avr. 2025 à 01:39
+-- Généré le : mer. 23 avr. 2025 à 02:11
 -- Version du serveur : 10.4.32-MariaDB
 -- Version de PHP : 8.0.30
 
@@ -106,16 +106,20 @@ CREATE TABLE `admin` (
   `id` int(11) NOT NULL,
   `nom` varchar(50) NOT NULL,
   `mdp` varchar(255) NOT NULL,
-  `email` varchar(100) DEFAULT NULL
+  `email` varchar(100) DEFAULT NULL,
+  `matchs` int(11) NOT NULL,
+  `users` int(11) NOT NULL,
+  `equipe1` int(11) NOT NULL,
+  `equipe2` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Déchargement des données de la table `admin`
 --
 
-INSERT INTO `admin` (`id`, `nom`, `mdp`, `email`) VALUES
-(1, 'admin', '$2b$10$rIU60nWMiMhKVFMdKNUY9e2zxIOTe.CuLx1Yb8mQNYdXKWh.1XqiW', 'admin@tournoi.fr'),
-(2, 'moderateur', '$2b$10$xJKL39TvQPzI5bQ.8TpmY.E3V3K4XZ5rBGYZl7fH3zOXrhd8wyXJO', 'mod@tournoi.fr');
+INSERT INTO `admin` (`id`, `nom`, `mdp`, `email`, `matchs`, `users`, `equipe1`, `equipe2`) VALUES
+(1, 'admin', '$2b$10$rIU60nWMiMhKVFMdKNUY9e2zxIOTe.CuLx1Yb8mQNYdXKWh.1XqiW', 'admin@tournoi.fr', 0, 0, 0, 0),
+(2, 'moderateur', '$2b$10$xJKL39TvQPzI5bQ.8TpmY.E3V3K4XZ5rBGYZl7fH3zOXrhd8wyXJO', 'mod@tournoi.fr', 0, 0, 0, 0);
 
 -- --------------------------------------------------------
 
@@ -125,8 +129,7 @@ INSERT INTO `admin` (`id`, `nom`, `mdp`, `email`) VALUES
 
 CREATE TABLE `classement` (
   `id` int(11) NOT NULL,
-  `equipe_id` int(11) NOT NULL,
-  `nom` varchar(100) NOT NULL,
+  `equipe` int(11) NOT NULL,
   `matchsJoues` int(11) NOT NULL DEFAULT 0,
   `gagne` int(11) NOT NULL DEFAULT 0,
   `perdu` int(11) NOT NULL DEFAULT 0,
@@ -154,13 +157,28 @@ CREATE TABLE `equipe` (
 --
 
 INSERT INTO `equipe` (`id`, `nom`) VALUES
+(11, '1 BAC PRO'),
+(10, '2TNE'),
+(13, '3PM'),
+(9, 'BTS ELEC'),
 (7, 'CIEL1'),
 (8, 'CIEL2'),
-(9, 'BTS ELEC'),
-(10, '2TNE'),
-(11, '1 BAC PRO'),
-(12, 'TLES BAC PRO'),
-(13, '3PM');
+(12, 'TLES BAC PRO');
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `inscription`
+--
+
+CREATE TABLE `inscription` (
+  `id` int(11) NOT NULL,
+  `nom` varchar(100) NOT NULL,
+  `prenom` varchar(100) NOT NULL,
+  `mail` varchar(100) NOT NULL,
+  `mdp` varchar(100) NOT NULL,
+  `DateDeNaissance` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -182,12 +200,19 @@ CREATE TABLE `journal` (
 --
 
 INSERT INTO `journal` (`id`, `table_name`, `operation`, `admin_id`, `date_operation`, `details`) VALUES
-(1, 'Matchs', 'INSERT', 1, '2025-04-22 01:06:45', 'Ajout du match PSG vs OM'),
-(2, 'users', 'UPDATE', 1, '2025-04-22 01:06:45', 'Mise à jour des informations de user1'),
-(3, 'equipe', 'INSERT', 2, '2025-04-22 01:06:45', 'Ajout de l\'équipe FC Nantes'),
-(4, 'Matchs', 'INSERT', 1, '2025-04-22 01:25:59', 'Ajout du match PSG vs OM'),
-(5, 'users', 'UPDATE', 1, '2025-04-22 01:25:59', 'Mise à jour des informations de user1'),
-(6, 'equipe', 'INSERT', 2, '2025-04-22 01:25:59', 'Ajout de l\'équipe FC Nantes');
+(7, 'admin_toto', 'admin_admin', 1, '2025-04-01 21:47:48', 'premier matchs');
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `login`
+--
+
+CREATE TABLE `login` (
+  `id` int(11) NOT NULL,
+  `nom` varchar(100) NOT NULL,
+  `mdp` varchar(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -203,6 +228,52 @@ CREATE TABLE `matchs` (
   `Butequipe2` int(11) NOT NULL DEFAULT 0,
   `date_match` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Déchargement des données de la table `matchs`
+--
+
+INSERT INTO `matchs` (`id`, `Equipe1`, `Equipe2`, `Butequipe1`, `Butequipe2`, `date_match`) VALUES
+(8, 11, 7, 3, 0, '2025-04-01 21:37:24'),
+(9, 11, 8, 2, 4, '2025-04-02 21:37:24'),
+(10, 11, 9, 3, 3, '2025-04-03 21:37:24'),
+(11, 11, 10, 2, 1, '2025-04-04 21:37:24'),
+(12, 11, 12, 2, 5, '2025-04-05 21:37:24'),
+(13, 11, 13, 9, 0, '2025-04-06 21:37:24'),
+(14, 10, 7, 4, 2, '2025-04-07 21:37:24'),
+(15, 10, 8, 2, 6, '2025-04-08 21:37:24'),
+(16, 10, 9, 4, 5, '2025-04-09 21:37:24'),
+(17, 10, 12, 4, 3, '2025-04-10 21:37:24'),
+(18, 10, 13, 8, 1, '2025-04-11 21:37:24'),
+(19, 13, 7, 1, 10, '2025-04-12 21:37:24'),
+(20, 13, 8, 0, 12, '2025-04-13 21:37:24'),
+(21, 13, 9, 0, 10, '2025-04-14 21:37:24'),
+(22, 13, 12, 0, 9, '2025-04-15 21:37:24'),
+(23, 9, 7, 0, 0, '2025-04-16 21:37:24'),
+(24, 9, 8, 0, 0, '2025-04-20 21:37:24'),
+(25, 9, 12, 2, 3, '2025-04-21 21:37:24'),
+(26, 7, 8, 1, 1, '2025-04-22 21:37:24'),
+(27, 7, 9, 2, 3, '2025-04-23 21:37:24'),
+(28, 11, 7, 3, 0, '2025-04-01 21:37:24'),
+(29, 11, 8, 2, 4, '2025-04-02 21:37:24'),
+(30, 11, 9, 3, 3, '2025-04-03 21:37:24'),
+(31, 11, 10, 2, 1, '2025-04-04 21:37:24'),
+(32, 11, 12, 2, 5, '2025-04-05 21:37:24'),
+(33, 11, 13, 9, 0, '2025-04-06 21:37:24'),
+(34, 10, 7, 4, 2, '2025-04-07 21:37:24'),
+(35, 10, 8, 2, 6, '2025-04-08 21:37:24'),
+(36, 10, 9, 4, 5, '2025-04-09 21:37:24'),
+(37, 10, 12, 4, 3, '2025-04-10 21:37:24'),
+(38, 10, 13, 8, 1, '2025-04-11 21:37:24'),
+(39, 13, 7, 1, 10, '2025-04-12 21:37:24'),
+(40, 13, 8, 0, 12, '2025-04-13 21:37:24'),
+(41, 13, 9, 0, 10, '2025-04-14 21:37:24'),
+(42, 13, 12, 0, 9, '2025-04-15 21:37:24'),
+(43, 9, 7, 0, 0, '2025-04-16 21:37:24'),
+(44, 9, 8, 0, 0, '2025-04-20 21:37:24'),
+(45, 9, 12, 2, 3, '2025-04-21 21:37:24'),
+(46, 7, 8, 1, 1, '2025-04-22 21:37:24'),
+(47, 7, 9, 2, 3, '2025-04-23 21:37:24');
 
 --
 -- Déclencheurs `matchs`
@@ -224,10 +295,8 @@ DELIMITER ;
 
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
-  `username` varchar(50) NOT NULL,
-  `password` varchar(255) NOT NULL,
-  `nom` varchar(50) DEFAULT NULL,
-  `prenom` varchar(50) DEFAULT NULL,
+  `nom` varchar(100) NOT NULL,
+  `mdp` varchar(255) NOT NULL,
   `role` enum('user','moderator') DEFAULT 'user'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -235,9 +304,9 @@ CREATE TABLE `users` (
 -- Déchargement des données de la table `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `password`, `nom`, `prenom`, `role`) VALUES
-(1, 'user1', '$2b$10$3IJz3N4xKs5K9PMhNdhEZO7z0hULanV/p9IGQAnwFuJLbmTRBEWxm', 'Dupont', 'Jean', 'user'),
-(2, 'user2', '$2b$10$vCvPtx9dLsHgvmsMhQ7Sce5C46Kn.30Jw4GaQPKO9XjKxOOY2hRqC', 'Martin', 'Sophie', 'user');
+INSERT INTO `users` (`id`, `nom`, `mdp`, `role`) VALUES
+(5, 'Jojo123', 'Jojo', 'user'),
+(6, 'toto1', 'toto', 'moderator');
 
 -- --------------------------------------------------------
 
@@ -248,7 +317,7 @@ INSERT INTO `users` (`id`, `username`, `password`, `nom`, `prenom`, `role`) VALU
 CREATE TABLE `vainqueur` (
   `id` int(11) NOT NULL,
   `nom` varchar(100) NOT NULL,
-  `equipe_id` int(11) DEFAULT NULL,
+  `equipe` int(11) DEFAULT NULL,
   `annee` varchar(20) DEFAULT '2024'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -278,20 +347,33 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 -- Index pour la table `admin`
 --
 ALTER TABLE `admin`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `nom` (`nom`),
+  ADD KEY `matchs` (`matchs`),
+  ADD KEY `users` (`users`),
+  ADD KEY `equipe1` (`equipe1`),
+  ADD KEY `equipe2` (`equipe2`);
 
 --
 -- Index pour la table `classement`
 --
 ALTER TABLE `classement`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `equipe_id` (`equipe_id`);
+  ADD KEY `equipe_id` (`equipe`);
 
 --
 -- Index pour la table `equipe`
 --
 ALTER TABLE `equipe`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `nom` (`nom`);
+
+--
+-- Index pour la table `inscription`
+--
+ALTER TABLE `inscription`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `nom` (`nom`);
 
 --
 -- Index pour la table `journal`
@@ -299,6 +381,13 @@ ALTER TABLE `equipe`
 ALTER TABLE `journal`
   ADD PRIMARY KEY (`id`),
   ADD KEY `admin_id` (`admin_id`);
+
+--
+-- Index pour la table `login`
+--
+ALTER TABLE `login`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `nom` (`nom`);
 
 --
 -- Index pour la table `matchs`
@@ -313,14 +402,15 @@ ALTER TABLE `matchs`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `username` (`username`);
+  ADD UNIQUE KEY `username` (`nom`);
 
 --
 -- Index pour la table `vainqueur`
 --
 ALTER TABLE `vainqueur`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `equipe_id` (`equipe_id`);
+  ADD UNIQUE KEY `nom` (`nom`),
+  ADD KEY `equipe_id` (`equipe`);
 
 --
 -- AUTO_INCREMENT pour les tables déchargées
@@ -345,22 +435,34 @@ ALTER TABLE `equipe`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
+-- AUTO_INCREMENT pour la table `inscription`
+--
+ALTER TABLE `inscription`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT pour la table `journal`
 --
 ALTER TABLE `journal`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+
+--
+-- AUTO_INCREMENT pour la table `login`
+--
+ALTER TABLE `login`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT pour la table `matchs`
 --
 ALTER TABLE `matchs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
 
 --
 -- AUTO_INCREMENT pour la table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT pour la table `vainqueur`
@@ -376,7 +478,7 @@ ALTER TABLE `vainqueur`
 -- Contraintes pour la table `classement`
 --
 ALTER TABLE `classement`
-  ADD CONSTRAINT `classement_ibfk_1` FOREIGN KEY (`equipe_id`) REFERENCES `equipe` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `classement_ibfk_1` FOREIGN KEY (`equipe`) REFERENCES `equipe` (`id`) ON DELETE CASCADE;
 
 --
 -- Contraintes pour la table `journal`
@@ -395,7 +497,7 @@ ALTER TABLE `matchs`
 -- Contraintes pour la table `vainqueur`
 --
 ALTER TABLE `vainqueur`
-  ADD CONSTRAINT `vainqueur_ibfk_1` FOREIGN KEY (`equipe_id`) REFERENCES `equipe` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `vainqueur_ibfk_1` FOREIGN KEY (`equipe`) REFERENCES `equipe` (`id`) ON DELETE SET NULL;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
