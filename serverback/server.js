@@ -215,6 +215,7 @@ app.post('/login', async (req, res) => {
     });
 });
 
+// route pour se deconnecter
 app.post('/logout', (req, res) => {
     res.clearCookie('token'); // Supprimer le cookie de session
     res.json('Déconnexion réussie');
@@ -228,6 +229,7 @@ app.get('/users', (req, res) => {
     });
 });
 
+// route pour ajouter un utilisateur
 app.post('/users', async (req, res) => {
     const { nom, mdp } = req.body;
     console.log("nom: " + nom + " mdp: " + mdp);
