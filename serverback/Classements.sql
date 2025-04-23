@@ -39,7 +39,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `update_classements` ()  DETERMINIST
 
     -- Mettre à jour à partir des matchs terminés
     UPDATE Classement c
-    JOIN equipe e ON c.equipe_id = e.id
+    JOIN equipe e ON c.equipe = e.id
     LEFT JOIN (
         SELECT 
             Equipe1 as equipe_id,
@@ -53,7 +53,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `update_classements` ()  DETERMINIST
         FROM Matchs
         WHERE statut = 'terminé'
         GROUP BY Equipe1
-    ) as home ON home.equipe_id = c.equipe_id
+    ) as home ON home.equipe_id = c.equipe
     SET 
         c.matchsJoues = IFNULL(home.joues, 0),
         c.gagne = IFNULL(home.victoires, 0),
@@ -65,7 +65,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `update_classements` ()  DETERMINIST
 
     -- Ajouter les matchs à l'extérieur
     UPDATE Classement c
-    JOIN equipe e ON c.equipe_id = e.id
+    JOIN equipe e ON c.equipe = e.id
     LEFT JOIN (
         SELECT 
             Equipe2 as equipe_id,
@@ -79,7 +79,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `update_classements` ()  DETERMINIST
         FROM Matchs
         WHERE statut = 'terminé'
         GROUP BY Equipe2
-    ) as away ON away.equipe_id = c.equipe_id
+    ) as away ON away.equipe_id = c.equipe
     SET 
         c.matchsJoues = c.matchsJoues + IFNULL(away.joues, 0),
         c.gagne = c.gagne + IFNULL(away.victoires, 0),
@@ -107,10 +107,10 @@ CREATE TABLE `admin` (
   `nom` varchar(50) NOT NULL,
   `mdp` varchar(255) NOT NULL,
   `email` varchar(100) DEFAULT NULL,
-  `matchs` int(11) NOT NULL,
-  `users` int(11) NOT NULL,
-  `equipe1` int(11) NOT NULL,
-  `equipe2` int(11) NOT NULL
+  `matchs` int(11) NOT NULL DEFAULT 0,
+  `users` int(11) NOT NULL DEFAULT 0,
+  `equipe1` int(11) NOT NULL DEFAULT 0,
+  `equipe2` int(11) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -226,54 +226,56 @@ CREATE TABLE `matchs` (
   `Equipe2` int(11) NOT NULL,
   `Butequipe1` int(11) NOT NULL DEFAULT 0,
   `Butequipe2` int(11) NOT NULL DEFAULT 0,
-  `date_match` datetime DEFAULT current_timestamp()
+  `date_match` datetime DEFAULT current_timestamp(),
+  `lieu` varchar(100) DEFAULT NULL,
+  `statut` enum('programmé','en cours','terminé','annulé') DEFAULT 'programmé'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Déchargement des données de la table `matchs`
 --
 
-INSERT INTO `matchs` (`id`, `Equipe1`, `Equipe2`, `Butequipe1`, `Butequipe2`, `date_match`) VALUES
-(8, 11, 7, 3, 0, '2025-04-01 21:37:24'),
-(9, 11, 8, 2, 4, '2025-04-02 21:37:24'),
-(10, 11, 9, 3, 3, '2025-04-03 21:37:24'),
-(11, 11, 10, 2, 1, '2025-04-04 21:37:24'),
-(12, 11, 12, 2, 5, '2025-04-05 21:37:24'),
-(13, 11, 13, 9, 0, '2025-04-06 21:37:24'),
-(14, 10, 7, 4, 2, '2025-04-07 21:37:24'),
-(15, 10, 8, 2, 6, '2025-04-08 21:37:24'),
-(16, 10, 9, 4, 5, '2025-04-09 21:37:24'),
-(17, 10, 12, 4, 3, '2025-04-10 21:37:24'),
-(18, 10, 13, 8, 1, '2025-04-11 21:37:24'),
-(19, 13, 7, 1, 10, '2025-04-12 21:37:24'),
-(20, 13, 8, 0, 12, '2025-04-13 21:37:24'),
-(21, 13, 9, 0, 10, '2025-04-14 21:37:24'),
-(22, 13, 12, 0, 9, '2025-04-15 21:37:24'),
-(23, 9, 7, 0, 0, '2025-04-16 21:37:24'),
-(24, 9, 8, 0, 0, '2025-04-20 21:37:24'),
-(25, 9, 12, 2, 3, '2025-04-21 21:37:24'),
-(26, 7, 8, 1, 1, '2025-04-22 21:37:24'),
-(27, 7, 9, 2, 3, '2025-04-23 21:37:24'),
-(28, 11, 7, 3, 0, '2025-04-01 21:37:24'),
-(29, 11, 8, 2, 4, '2025-04-02 21:37:24'),
-(30, 11, 9, 3, 3, '2025-04-03 21:37:24'),
-(31, 11, 10, 2, 1, '2025-04-04 21:37:24'),
-(32, 11, 12, 2, 5, '2025-04-05 21:37:24'),
-(33, 11, 13, 9, 0, '2025-04-06 21:37:24'),
-(34, 10, 7, 4, 2, '2025-04-07 21:37:24'),
-(35, 10, 8, 2, 6, '2025-04-08 21:37:24'),
-(36, 10, 9, 4, 5, '2025-04-09 21:37:24'),
-(37, 10, 12, 4, 3, '2025-04-10 21:37:24'),
-(38, 10, 13, 8, 1, '2025-04-11 21:37:24'),
-(39, 13, 7, 1, 10, '2025-04-12 21:37:24'),
-(40, 13, 8, 0, 12, '2025-04-13 21:37:24'),
-(41, 13, 9, 0, 10, '2025-04-14 21:37:24'),
-(42, 13, 12, 0, 9, '2025-04-15 21:37:24'),
-(43, 9, 7, 0, 0, '2025-04-16 21:37:24'),
-(44, 9, 8, 0, 0, '2025-04-20 21:37:24'),
-(45, 9, 12, 2, 3, '2025-04-21 21:37:24'),
-(46, 7, 8, 1, 1, '2025-04-22 21:37:24'),
-(47, 7, 9, 2, 3, '2025-04-23 21:37:24');
+INSERT INTO `matchs` (`id`, `Equipe1`, `Equipe2`, `Butequipe1`, `Butequipe2`, `date_match`, `lieu`, `statut`) VALUES
+(8, 11, 7, 3, 0, '2025-04-01 21:37:24', NULL, 'terminé'),
+(9, 11, 8, 2, 4, '2025-04-02 21:37:24', NULL, 'terminé'),
+(10, 11, 9, 3, 3, '2025-04-03 21:37:24', NULL, 'terminé'),
+(11, 11, 10, 2, 1, '2025-04-04 21:37:24', NULL, 'terminé'),
+(12, 11, 12, 2, 5, '2025-04-05 21:37:24', NULL, 'terminé'),
+(13, 11, 13, 9, 0, '2025-04-06 21:37:24', NULL, 'terminé'),
+(14, 10, 7, 4, 2, '2025-04-07 21:37:24', NULL, 'terminé'),
+(15, 10, 8, 2, 6, '2025-04-08 21:37:24', NULL, 'terminé'),
+(16, 10, 9, 4, 5, '2025-04-09 21:37:24', NULL, 'terminé'),
+(17, 10, 12, 4, 3, '2025-04-10 21:37:24', NULL, 'terminé'),
+(18, 10, 13, 8, 1, '2025-04-11 21:37:24', NULL, 'terminé'),
+(19, 13, 7, 1, 10, '2025-04-12 21:37:24', NULL, 'terminé'),
+(20, 13, 8, 0, 12, '2025-04-13 21:37:24', NULL, 'terminé'),
+(21, 13, 9, 0, 10, '2025-04-14 21:37:24', NULL, 'terminé'),
+(22, 13, 12, 0, 9, '2025-04-15 21:37:24', NULL, 'terminé'),
+(23, 9, 7, 0, 0, '2025-04-16 21:37:24', NULL, 'terminé'),
+(24, 9, 8, 0, 0, '2025-04-20 21:37:24', NULL, 'terminé'),
+(25, 9, 12, 2, 3, '2025-04-21 21:37:24', NULL, 'terminé'),
+(26, 7, 8, 1, 1, '2025-04-22 21:37:24', NULL, 'terminé'),
+(27, 7, 9, 2, 3, '2025-04-23 21:37:24', NULL, 'terminé'),
+(28, 11, 7, 3, 0, '2025-04-01 21:37:24', NULL, 'terminé'),
+(29, 11, 8, 2, 4, '2025-04-02 21:37:24', NULL, 'terminé'),
+(30, 11, 9, 3, 3, '2025-04-03 21:37:24', NULL, 'terminé'),
+(31, 11, 10, 2, 1, '2025-04-04 21:37:24', NULL, 'terminé'),
+(32, 11, 12, 2, 5, '2025-04-05 21:37:24', NULL, 'terminé'),
+(33, 11, 13, 9, 0, '2025-04-06 21:37:24', NULL, 'terminé'),
+(34, 10, 7, 4, 2, '2025-04-07 21:37:24', NULL, 'terminé'),
+(35, 10, 8, 2, 6, '2025-04-08 21:37:24', NULL, 'terminé'),
+(36, 10, 9, 4, 5, '2025-04-09 21:37:24', NULL, 'terminé'),
+(37, 10, 12, 4, 3, '2025-04-10 21:37:24', NULL, 'terminé'),
+(38, 10, 13, 8, 1, '2025-04-11 21:37:24', NULL, 'terminé'),
+(39, 13, 7, 1, 10, '2025-04-12 21:37:24', NULL, 'terminé'),
+(40, 13, 8, 0, 12, '2025-04-13 21:37:24', NULL, 'terminé'),
+(41, 13, 9, 0, 10, '2025-04-14 21:37:24', NULL, 'terminé'),
+(42, 13, 12, 0, 9, '2025-04-15 21:37:24', NULL, 'terminé'),
+(43, 9, 7, 0, 0, '2025-04-16 21:37:24', NULL, 'terminé'),
+(44, 9, 8, 0, 0, '2025-04-20 21:37:24', NULL, 'terminé'),
+(45, 9, 12, 2, 3, '2025-04-21 21:37:24', NULL, 'terminé'),
+(46, 7, 8, 1, 1, '2025-04-22 21:37:24', NULL, 'terminé'),
+(47, 7, 9, 2, 3, '2025-04-23 21:37:24', NULL, 'terminé');
 
 --
 -- Déclencheurs `matchs`
@@ -281,7 +283,7 @@ INSERT INTO `matchs` (`id`, `Equipe1`, `Equipe2`, `Butequipe1`, `Butequipe2`, `d
 DELIMITER $$
 CREATE TRIGGER `after_match_update` AFTER UPDATE ON `matchs` FOR EACH ROW BEGIN
     IF NEW.statut = 'terminé' AND OLD.statut != 'terminé' THEN
-        CALL update_classement();
+        CALL update_classements();
     END IF;
 END
 $$
@@ -328,6 +330,16 @@ CREATE TABLE `vainqueur` (
 -- (Voir ci-dessous la vue réelle)
 --
 CREATE TABLE `vue_matchs` (
+`id` int(11)
+,`Equipe1` int(11)
+,`Equipe2` int(11)
+,`Butequipe1` int(11)
+,`Butequipe2` int(11)
+,`nom_equipe1` varchar(100)
+,`nom_equipe2` varchar(100)
+,`date_match` datetime
+,`lieu` varchar(100)
+,`statut` enum('programmé','en cours','terminé','annulé')
 );
 
 -- --------------------------------------------------------
@@ -348,11 +360,7 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 --
 ALTER TABLE `admin`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `nom` (`nom`),
-  ADD KEY `matchs` (`matchs`),
-  ADD KEY `users` (`users`),
-  ADD KEY `equipe1` (`equipe1`),
-  ADD KEY `equipe2` (`equipe2`);
+  ADD UNIQUE KEY `nom` (`nom`);
 
 --
 -- Index pour la table `classement`

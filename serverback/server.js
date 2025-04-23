@@ -39,7 +39,7 @@ app.use(limiter); // Appliquer à toutes les routes
 
 // Configuration de la connexion à la base de données
 const bddConnection = mysql.createConnection({
-    host: 'localhost',
+    host: '192.168.64.175',
     user: 'site1',
     password: 'yuzu007',
     database: 'Classements'
@@ -54,10 +54,10 @@ bddConnection.connect(function (err) {
 // Middleware d'authentification
 function authenticateToken(req, res, next) {
     const token = req.cookies.token; // Récupérer le token depuis les cookies
-    if (token == null) return res.sendStatus(401);
+    if (token == null) return res.status(401).json('Token manquant');
 
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403);
+        if (err) return res.status(403).json('Token invalide');
         req.user = user;
         next();
     });
