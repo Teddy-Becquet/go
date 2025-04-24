@@ -39,9 +39,9 @@ app.use(limiter); // Appliquer à toutes les routes
 
 // Configuration de la connexion à la base de données
 const bddConnection = mysql.createConnection({
-    host: '192.168.64.175',
-    user: 'site1',
-    password: 'yuzu007',
+    host: 'localhost',
+    user: 'root',
+    password: '',
     database: 'Classements'
 });
 
@@ -173,8 +173,26 @@ app.get('/', (req, res) => {
 });
 
 //////////////////////////////////////////////////////
+
 app.get('/accueil', authenticateToken, (req, res) => {
-    res.json('Vous êtes dans la page d\'accueil. Soyez les bienvenus sur cette page');
+    res.json('coucou');
+});
+
+// Vérification du token d'authentification
+function verifierToken(req, res, next) {
+    const token = req.cookies.token; // Récupérer le token depuis les cookies
+    if (token == null) return res.status(401).json('Token manquant');
+
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+        if (err) return res.status(403).json('Token invalide');
+        req.user = user;
+        next();
+    });
+}
+
+// Route d'accueil
+app.get('/accueil', verifierToken, (req, res) => {
+    res.status(200).json({ message: `Bienvenue! Vous êtes dans la page d\'accueil. Soyez les bienvenus sur cette page ${req.user.nom}` });
 });
 //////////////////////////////////////////////////////
 
@@ -294,13 +312,14 @@ app.get('/admin/users', (req, res) => {
 });
 
 app.post('/admin/users', (req, res) => {
-    const { id, nom, prenom, mdp } = req.body;
+    const { id, nom, mdp, role } = req.body;
 
-    if (!id || !nom || !prenom || !mdp) {
+    if (!id || !nom || !mdp || !role) {
         return res.status(400).json({ message: "Données manquantes" });
     }
-    const sql = "INSERT INTO users (id, nom, prenom, mdp) VALUES (?, ?, ?, ?)";
-    bddConnection.query(sql, [id, nom, prenom, mdp], (err, result) => {
+
+    const sql = "INSERT INTO users (id, nom, mdp, role) VALUES (?, ?, ?, ?)";
+    bddConnection.query(sql, [id, nom, mdp, role], (err, result) => {
         if (err) {
             console.error("Erreur lors de l'insertion :", err);
             return res.status(500).json({ message: "Erreur serveur" });
@@ -331,49 +350,28 @@ app.get('/admin/users/:id', (req, res) => {
     });
 });
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////
 app.put('/admin/users/:id', (req, res) => {
-    const id = req.params.id;
-    const { nom, prenom, mdp } = req.body;
-    // Vérifier si l'ID est valide (uniquement si c'est un entier)
-    if (isNaN(id)) {
-        return res.status(400).json({ message: "ID invalide" });
+    const userId = req.params.id;
+    const { nom, mdp, role } = req.body;
+
+    if (!nom || !mdp || !role) {
+        return res.status(400).json({ message: "Données manquantes" });
     }
-    // Vérifier si tous les champs sont fournis
-    if (!nom || !prenom || !mdp) {
-        return res.status(400).json({ message: "Tous les champs sont obligatoires" });
-    }
-    // Vérifier si l'utilisateur existe
-    bddConnection.query("SELECT * FROM users WHERE id = ?", [id], (err, result) => {
+
+    const sql = "UPDATE users SET nom = ?, mdp = ?, role = ? WHERE id = ?";
+    bddConnection.query(sql, [nom, mdp, role, userId], (err, result) => {
         if (err) {
-            console.error("Erreur SQL :", err);
+            console.error("Erreur lors de la mise à jour :", err);
             return res.status(500).json({ message: "Erreur serveur" });
         }
-        if (result.length === 0) {
+
+        if (result.affectedRows === 0) {
             return res.status(404).json({ message: "Utilisateur non trouvé" });
         }
-        console.log("Utilisateur trouvé :", result[0]);
-        // Hachage du mot de passe
-        bcrypt.hash(mdp, 10, (err, hash) => {
-            if (err) {
-                console.error("Erreur lors du hash du mot de passe :", err);
-                return res.status(500).json({ message: "Erreur serveur" });
-            }
-            const sql = "UPDATE users SET nom = ?, prenom = ?, mdp = ? WHERE id = ?";
-            bddConnection.query(sql, [nom, prenom, hash, id], (err, result) => {
-                if (err) {
-                    console.error("Erreur lors de la mise à jour de l'utilisateur :", err);
-                    return res.status(500).json({ message: "Erreur serveur" });
-                }
-                if (result.affectedRows === 0) {
-                    return res.status(400).json({ message: "Aucune modification effectuée" });
-                }
-                res.status(200).json({ message: "Utilisateur mis à jour avec succès !" });
-            });
-        });
+
+        res.status(200).json({ message: "Utilisateur mis à jour !" });
     });
 });
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 app.delete('/admin/users/:id', (req, res) => {
     const id = req.params.id;
@@ -430,8 +428,7 @@ app.get('/equipes', (req, res) => {
     });
 });
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-app.get('/equipes/:id', (req, res) => {
+app.get('/admin/equipes/:id', (req, res) => {
     const id = req.params.id;
 
     // Vérification que l'ID est un nombre valide
@@ -450,7 +447,6 @@ app.get('/equipes/:id', (req, res) => {
         res.json(results[0]);
     });
 });
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 app.post('/admin/equipes', (req, res) => {
     // Assurez-vous que express.json() middleware est bien configuré avant cette route
@@ -477,7 +473,6 @@ app.post('/admin/equipes', (req, res) => {
     });
 });
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
 app.put('/admin/equipes/:id', (req, res) => {
     const id = req.params.id;
     const { nom } = req.body;
@@ -490,7 +485,6 @@ app.put('/admin/equipes/:id', (req, res) => {
         res.json({ message: "Equipe mise à jour avec succès !" });
     });
 });
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 app.delete('/admin/equipes/:id', (req, res) => {
     const id = req.params.id;
@@ -503,7 +497,6 @@ app.delete('/admin/equipes/:id', (req, res) => {
         res.json({ message: "Equipe supprimée avec succès !" });
     });
 });
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Routes pour les matchs
 app.get('/matchs', (req, res) => {
@@ -560,7 +553,26 @@ app.get('/classement', (req, res) => {
     });
 });
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+//route pour les classements en admin
+app.get('/admin/classement', (req, res) => {
+    const query = "SELECT * FROM Classement";
+    
+    bddConnection.query(query, (error, results, fields) => {
+        if (error) {
+            console.error("Erreur MySQL lors de la récupération des classements:", error);
+            return res.status(500).json({ error: "Erreur lors de la récupération des classements" });
+        }
+        
+        console.log(`${results.length} classements récupérés avec succès`);
+        res.json({
+            success: true,
+            count: results.length,
+            classements: results
+        });
+    });
+});
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 app.post('/admin/classement', (req, res) => {
     const { nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs } = req.body;
     
@@ -647,8 +659,8 @@ app.get('/vainqueur', (req, res) => {
     });
 });
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-app.post('/vainqueur', (req, res) => {
+
+app.post('/admin/vainqueur', (req, res) => {
     const { nom } = req.body;
     console.log("Données reçues pour le vainqueur :", req.body);
     
@@ -671,6 +683,31 @@ app.post('/vainqueur', (req, res) => {
         });
     });
 });
+
+app.put('/admin/vainqueur/:id', (req, res) => {
+    const id = req.params.id;
+    const { nom } = req.body;
+    const query = "UPDATE Vainqueur SET nom = ? WHERE id = ?";
+    bddConnection.query(query, [nom, id], (error, results, fields) => {
+        if (error) throw error;
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ message: "Vainqueur non trouvé" });
+        }
+        res.json({ message: "Vainqueur mis à jour avec succès !" });
+    });
+});
+
+app.delete('/admin/vainqueur/:id', (req, res) => {
+    const id = req.params.id;
+    const query = "DELETE FROM Vainqueur WHERE id = ?";
+    bddConnection.query(query, [id], (error, results, fields) => {
+        if (error) throw error;
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ message: "Vainqueur non trouvé" });
+        }
+        res.json({ message: "Vainqueur supprimé avec succès !" });
+    });
+});
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Test de requête SQL directe
@@ -686,3 +723,11 @@ bddConnection.query('SELECT * FROM users', (err, results) => {
 app.listen(port, () => {
     console.log(`Le serveur est en écoute sur le port ${port}`);
 });
+
+
+
+
+
+
+
+//  eh jonas lis ce message tu vas bien finir par comprendre alors vois classement = rang ok je repete classement = rang merci bon courage 
