@@ -7,20 +7,10 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
-const bodyParser = require("body-parser");
-const pm2 = require("pm2");
-const { request } = require('http');
-const { response } = require('express');
-const { json } = require('express');
-const { urlencoded } = require('express');
-const { use } = require('express');
 const process = require('process');
-const { Console } = require('console');
-const { error } = require('console');
-const cooking = require('cooking');
 
 // Configuration du serveur
-const port = 9100; 
+const port = 8080; 
 const app = express();
 
 // Configuration des middlewares
@@ -39,10 +29,10 @@ app.use(limiter); // Appliquer à toutes les routes
 
 // Configuration de la connexion à la base de données
 const bddConnection = mysql.createConnection({
-    host: 'localhost',
+    host: '127.0.0.1',
     user: 'root',
-    password: '',
-    database: 'Classements'
+    password: 'root',
+    database: 'Futsal',
 });
 
 // Connexion à la base de données
