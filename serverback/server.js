@@ -8,31 +8,76 @@ const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const process = require('process');
+const pm2 = require("pm2");
 
 // Configuration du serveur
 const port = 8080; 
 const app = express();
 
-// Configuration des middlewares
-app.use(cors());
-app.use(express.urlencoded({ extended: true })); 
-app.use(cookieParser());
-app.use(express.json());
+// Protection contre les injections SQL
+const sqlInjectionProtection = (req, res, next) => {
+    const regex = /['"\\]/g; // Caractères à interdire
+    for (const key in req.body) {
+        if (typeof req.body[key] === 'string') {
+            req.body[key] = req.body[key].replace(regex, '');
+        }
+    }
+    next();
+};
+
+// Configuration de la connexion à PM2
+pm2.connect({
+    host: '192.168.65.127',
+    port:9100,
+    user: 'site1',
+    password: 'site1',
+    database: 'classements'
+}, (err) => {
+    if (err) {
+        console.error(err);
+        process.exit(2);
+    }
+});
+
+// Connexion à PM2
+pm2.connect((err) => {
+    if (err) {
+        console.error(err);
+        process.exit(2);
+    }
+    pm2.start({
+        script: 'server.js', // chemin vers le fichier de votre serveur
+        name: 'mon-serveur', // nom de votre application
+        exec_mode: 'cluster', // mode d'exécution (cluster ou fork)
+        instances: 1, // nombre d'instances
+        watch: false, // activer la surveillance des fichiers
+    }, (err, apps) => {
+        pm2.disconnect();
+        if (err) throw err;
+    });
+});
 
 // Limite de requêtes pour éviter le spam (5 requêtes max par 1 minute par IP)
 const limiter = rateLimit({
     windowMs: 1 * 60 * 10000, // 1 minute
     max: 25,
-    message: "hahahahah!!!! Trop de tentatives. Réessayez plus tard.",
+    message: "hahahahah!!!! Tu as trop fait de tentatives. Alors réessayez plus tard. hahahahhhah!!!",
 });
-app.use(limiter); // Appliquer à toutes les routes
+
+// Configuration des middlewares
+app.use(cors()); // Middleware pour autoriser les requêtes CORS
+app.use(express.urlencoded({ extended: true })); // Middleware pour parser les données URL-encoded
+app.use(cookieParser()); // Middleware pour parser les cookies
+app.use(express.json()) // Middleware pour parser le JSON
+app.use(limiter); // Appliquer le middleware de protection contre les spam et l'appliquer à toutes les routes
+app.use(sqlInjectionProtection); // Appliquer le middleware de protection contre les injections SQL
 
 // Configuration de la connexion à la base de données
 const bddConnection = mysql.createConnection({
-    host: '127.0.0.1',
-    user: 'root',
-    password: 'root',
-    database: 'Futsal',
+    host: '192.168.65.127',
+    user: 'site1',
+    password: 'site1',
+    database: 'classements'
 });
 
 // Connexion à la base de données
@@ -53,14 +98,12 @@ function authenticateToken(req, res, next) {
     });
 }
 
-// Fonctions utilitaires
 function calculerClassement(matchs) {
     const classement = {};
-  
+
     matchs.forEach(match => {
         const { Equipe1, Equipe2, Butequipe1, Butequipe2, nom_equipe1, nom_equipe2 } = match;
-  
-        // Initialiser les équipes dans le classement si elles n'existent pas
+
         if (!classement[Equipe1]) {
             classement[Equipe1] = {
                 id: Equipe1,
@@ -89,56 +132,53 @@ function calculerClassement(matchs) {
                 differenceButs: 0,
             };
         }
-  
-        // Mettre à jour les statistiques pour chaque équipe
+
         classement[Equipe1].matchsJoues += 1;
         classement[Equipe2].matchsJoues += 1;
-  
+
         classement[Equipe1].butsPour += Butequipe1;
         classement[Equipe1].butsContre += Butequipe2;
-        classement[Equipe1].differenceButs = classement[Equipe1].butsPour - classement[Equipe1].butsContre;
-  
+
         classement[Equipe2].butsPour += Butequipe2;
         classement[Equipe2].butsContre += Butequipe1;
-        classement[Equipe2].differenceButs = classement[Equipe2].butsPour - classement[Equipe2].butsContre;
-  
-        // Déterminer le résultat du match
+
+        // Résultat
         if (Butequipe1 > Butequipe2) {
-            // Équipe 1 gagne
             classement[Equipe1].points += 3;
             classement[Equipe1].gagne += 1;
             classement[Equipe2].perdu += 1;
         } else if (Butequipe2 > Butequipe1) {
-            // Équipe 2 gagne
             classement[Equipe2].points += 3;
             classement[Equipe2].gagne += 1;
             classement[Equipe1].perdu += 1;
         } else {
-            // Match nul
             classement[Equipe1].points += 1;
             classement[Equipe2].points += 1;
             classement[Equipe1].nul += 1;
             classement[Equipe2].nul += 1;
         }
+
+        classement[Equipe1].differenceButs = classement[Equipe1].butsPour - classement[Equipe1].butsContre;
+        classement[Equipe2].differenceButs = classement[Equipe2].butsPour - classement[Equipe2].butsContre;
     });
-  
-    // Convertir l'objet en tableau pour un classement plus lisible
+
     const classementArray = Object.values(classement);
-  
-    // Trier le classement selon les critères
+
     classementArray.sort((a, b) => {
-        if (b.points !== a.points) {
-            return b.points - a.points; // Tri par points décroissants
-        } else if (b.differenceButs !== a.differenceButs) {
-            return b.differenceButs - a.differenceButs; // Tri par différence de buts
-        } else {
-            return b.butsPour - a.butsPour; // Tri par buts marqués
-        }
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.differenceButs !== a.differenceButs) return b.differenceButs - a.differenceButs;
+        return b.butsPour - a.butsPour;
     });
-  
+
+    // On ajoute le rang ici
+    classementArray.forEach((equipe, index) => {
+        equipe.rang = index + 1;
+    });
+
     return classementArray;
 }
 
+// Fonction pour déterminer le vainqueur d'un match
 function determinerVainqueur(matchs) {
     const vainqueurs = [];
 
@@ -157,17 +197,6 @@ function determinerVainqueur(matchs) {
     return vainqueurs;
 }
 
-// Routes générales
-app.get('/', (req, res) => {
-    res.json('Bonjour, ceci est notre serveur (back-end), soyez les bienvenus ! ajouter un /accueil dans URL pour accéder à la page d\'accueil');
-});
-
-//////////////////////////////////////////////////////
-
-app.get('/accueil', authenticateToken, (req, res) => {
-    res.json('coucou');
-});
-
 // Vérification du token d'authentification
 function verifierToken(req, res, next) {
     const token = req.cookies.token; // Récupérer le token depuis les cookies
@@ -180,45 +209,93 @@ function verifierToken(req, res, next) {
     });
 }
 
+// Routes générales
+app.get('/', (req, res) => {
+    res.json('Bonjour, ceci est notre serveur (back-end), soyez les bienvenus ! ajouter un /accueil dans URL pour accéder à la page d\'accueil');
+});
+
 // Route d'accueil
 app.get('/accueil', verifierToken, (req, res) => {
     res.status(200).json({ message: `Bienvenue! Vous êtes dans la page d\'accueil. Soyez les bienvenus sur cette page ${req.user.nom}` });
 });
-//////////////////////////////////////////////////////
 
 // Routes d'authentification
 app.post('/inscription', async (req, res) => {
     try {
-        const hashedPassword = await bcrypt.hash(req.body.password, 10);
-        const user = { username: req.body.username, password: hashedPassword };
-        bddConnection.query('SELECT * FROM users WHERE user_name = ?', [username], async function (err, rows) {
-            if (err) throw err;
-            res.status(201).json('Utilisateur enregistré');
+        const { nom, mdp } = req.body;
+
+        // Hachage du mot de passe
+        const hashedPassword = await bcrypt.hash(mdp, 10);
+
+        // Vérifie si l'utilisateur existe déjà
+        bddConnection.query('SELECT * FROM users WHERE nom = ?', [nom], async (err, rows) => {
+            if (err) return res.status(500).json({ message: "Erreur SQL" });
+
+            if (rows.length > 0) {
+                return res.status(400).json({ message: "Utilisateur déjà existant" });
+            }
+
+            // Insertion dans la base
+            bddConnection.query('INSERT INTO users (nom, mdp) VALUES (?, ?)', [nom, hashedPassword], (err2, result) => {
+                if (err2) return res.status(500).json({ message: "Erreur lors de l'insertion" });
+
+                res.status(201).json({ message: "Utilisateur enregistré avec succès" });
+            });
         });
-    } catch {
-        res.status(500).json();
+
+    } catch (e) {
+        res.status(500).json({ message: "Erreur serveur" });
     }
 });
 
 app.post('/login', async (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json('Veuillez remplir tous les champs.');
-    bddConnection.query('SELECT * FROM users WHERE username = ?', [username], async (err, rows) => {
+    const { nom, mdp } = req.body;
+
+    // Vérifie que tous les champs sont fournis
+    if (!nom || !mdp) return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
+
+    // Recherche l'utilisateur par son nom
+    bddConnection.query('SELECT * FROM users WHERE nom = ?', [nom], async (err, rows) => {
         if (err) {
-            console.error(err);
-            return res.status(500).json('Erreur serveur');
+            console.error('Erreur SQL :', err);
+            return res.status(500).json({ message: 'Erreur serveur' });
         }
-        if (rows.length === 0) return res.status(400).json('Utilisateur non trouvé');
+
+        if (rows.length === 0) {
+            return res.status(400).json({ message: 'Utilisateur non trouvé' });
+        }
+
         try {
-            const match = await bcrypt.compare(password, rows[0].password);
-            if (!match) return res.status(401).json('Mot de passe incorrect');
-            const user = { name: username };
-            const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
-            res.cookie('token', accessToken, { httpOnly: true, secure: true, sameSite: 'Strict' });
-            res.json({ accessToken });
+            const userInDB = rows[0];
+
+            // Vérifie le mot de passe haché
+            const match = await bcrypt.compare(mdp, userInDB.mdp);
+
+            if (!match) {
+                return res.status(401).json({ message: 'Mot de passe incorrect' });
+            }
+
+            // Crée un objet utilisateur minimal pour le token
+            const userPayload = { id: userInDB.id, nom: userInDB.nom };
+
+            // Génère un token JWT
+            const secret = process.env.ACCESS_TOKEN_SECRET || 'default_secret';
+            const accessToken = jwt.sign(userPayload, secret, { expiresIn: '1h' });
+            console.log('Token généré :', accessToken);
+
+            // Envoie le token dans un cookie sécurisé
+            res.cookie('token', accessToken, {
+                httpOnly: true,
+                secure: true, // Mets false si tu testes en local sans HTTPS
+                sameSite: 'Strict',
+                maxAge: 3600000 // 1h
+            });
+
+            res.status(200).json({ message: 'Connexion réussie', accessToken });
+
         } catch (error) {
-            console.error(error);
-            res.status(500).json('Erreur lors de l\'authentification');
+            console.error('Erreur auth :', error);
+            res.status(500).json({ message: 'Erreur lors de l\'authentification' });
         }
     });
 });
@@ -376,6 +453,43 @@ app.delete('/admin/users/:id', (req, res) => {
 });
 
 // Routes pour l'administration
+app.get('/admin/connexion', (req, res) => {
+    const sql = "SELECT * FROM Admin";
+    bddConnection.query(sql, (err, result) => {
+        if (err) {
+            console.error("Erreur SQL :", err);
+            return res.status(500).json({ message: "Erreur serveur" });
+        }
+        if (result.length === 0) {
+            return res.status(404).json({ message: "Aucun admin trouvé" });
+        }
+        console.log("Admins récupérés :", result);
+        res.status(200).json(result);
+    });
+});
+
+app.get('/admin/connexion/:id', (req, res) => {
+    const id = req.params.id;
+    console.log("ID reçu :", id);
+    if (!bddConnection) {
+        console.error("Erreur : connexion à la base de données manquante.");
+        return res.status(500).json({ message: "Erreur serveur : connexion DB manquante" });
+    }
+    const sql = "SELECT * FROM Admin WHERE id = ?";
+    console.log("Requête SQL exécutée :", sql, "avec ID :", id);
+    bddConnection.query(sql, [id], (err, result) => {
+        if (err) {
+            console.error("Erreur SQL :", err);
+            return res.status(500).json({ message: "Erreur serveur" });
+        }
+        console.log("Résultat MySQL :", result);
+        if (result.length === 0) {
+            return res.status(404).json({ message: "Admin non trouvé" });
+        }
+        res.status(200).json(result[0]);
+    });
+});
+
 app.post('/admin/connexion', async (req, res) => {
     const { nom, mdp } = req.body;
 
@@ -513,6 +627,177 @@ app.get('/matchs', (req, res) => {
     });
 });
 
+// Route pour récupérer l'id d'un match spécifique
+app.get('/admin/matchs/:id', (req, res) => {
+    const id = req.params.id;
+    const query = `
+    SELECT
+        m.id,
+        m.Equipe1,
+        m.Equipe2,
+        m.Butequipe1,
+        m.Butequipe2,
+        e1.nom AS nom_equipe1,
+        e2.nom AS nom_equipe2
+    FROM
+        Matchs m
+    JOIN
+        equipe e1 ON m.Equipe1 = e1.id
+    JOIN
+        equipe e2 ON m.Equipe2 = e2.id
+    WHERE
+        m.id = ?;
+    `;
+    bddConnection.query(query, [id], (error, results, fields) => {
+        if (error) {
+            console.error("Erreur MySQL lors de la récupération du match :", error);
+            return res.status(500).json({ error: "Erreur lors de la récupération du match" });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ message: "Match non trouvé" });
+        }
+        res.json(results[0]);
+    }
+    );
+});
+
+app.post('/admin/matchs', (req, res) => {
+    const { Equipe1, Equipe2, Butequipe1, Butequipe2 } = req.body;
+    console.log("Données reçues pour le match :", req.body);
+    if (!Equipe1 || !Equipe2 || !Butequipe1 || !Butequipe2) {
+        return res.status(400).json({ error: "Tous les champs sont requis." });
+    }
+
+    const query = "INSERT INTO Matchs (Equipe1, Equipe2, Butequipe1, Butequipe2) VALUES (?, ?, ?, ?)";
+    bddConnection.query(query, [Equipe1, Equipe2, Butequipe1, Butequipe2], (err, result) => {
+        if (err) {
+            console.error("Erreur MySQL lors de l'ajout du match :", err);
+            return res.status(500).json({ error: "Erreur lors de l'ajout du match" });
+        }
+        console.log("Match ajouté avec succès, ID:", result.insertId);
+        res.status(201).json({
+            message: "Match ajouté avec succès !",
+            id: result.insertId,
+            Equipe1: Equipe1,
+            Equipe2: Equipe2,
+            Butequipe1: Butequipe1,
+            Butequipe2: Butequipe2
+        });
+    });
+});
+app.put('/admin/matchs/:id', (req, res) => {
+    const id = req.params.id;
+    const { Equipe1, Equipe2, Butequipe1, Butequipe2 } = req.body;
+    const query = "UPDATE Matchs SET Equipe1 = ?, Equipe2 = ?, Butequipe1 = ?, Butequipe2 = ? WHERE id = ?";
+    bddConnection.query(query, [Equipe1, Equipe2, Butequipe1, Butequipe2, id], (error, results, fields) => {
+        if (error) {
+            console.error("Erreur MySQL lors de la mise à jour du match :", error);
+            return res.status(500).json({ error: "Erreur lors de la mise à jour du match" });
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ message: "Match non trouvé" });
+        }
+        res.json({ message: "Match mis à jour avec succès !" });
+    }
+    );
+});
+
+app.delete('/admin/matchs/:id', (req, res) => {
+    const id = req.params.id;
+    const query = "DELETE FROM Matchs WHERE id = ?";
+    bddConnection.query(query, [id], (error, results, fields) => {
+        if (error) {
+            console.error("Erreur MySQL lors de la suppression du match :", error);
+            return res.status(500).json({ error: "Erreur lors de la suppression du match" });
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ message: "Match non trouvé" });
+        }
+        res.json({ message: "Match supprimé avec succès !" });
+    });
+});
+
+// Fonction pour calculer le classement
+function calculerClassement(matchs) {
+    const classement = {};
+
+    matchs.forEach(match => {
+        const { Equipe1, Equipe2, Butequipe1, Butequipe2, nom_equipe1, nom_equipe2 } = match;
+
+        if (!classement[Equipe1]) {
+            classement[Equipe1] = {
+                id: Equipe1,
+                nom: nom_equipe1,
+                matchsJoues: 0,
+                gagne: 0,
+                perdu: 0,
+                nul: 0,
+                points: 0,
+                butsPour: 0,
+                butsContre: 0,
+                differenceButs: 0,
+            };
+        }
+        if (!classement[Equipe2]) {
+            classement[Equipe2] = {
+                id: Equipe2,
+                nom: nom_equipe2,
+                matchsJoues: 0,
+                gagne: 0,
+                perdu: 0,
+                nul: 0,
+                points: 0,
+                butsPour: 0,
+                butsContre: 0,
+                differenceButs: 0,
+            };
+        }
+
+        classement[Equipe1].matchsJoues += 1;
+        classement[Equipe2].matchsJoues += 1;
+
+        classement[Equipe1].butsPour += Butequipe1;
+        classement[Equipe1].butsContre += Butequipe2;
+
+        classement[Equipe2].butsPour += Butequipe2;
+        classement[Equipe2].butsContre += Butequipe1;
+
+        // Résultat
+        if (Butequipe1 > Butequipe2) {
+            classement[Equipe1].points += 3;
+            classement[Equipe1].gagne += 1;
+            classement[Equipe2].perdu += 1;
+        } else if (Butequipe2 > Butequipe1) {
+            classement[Equipe2].points += 3;
+            classement[Equipe2].gagne += 1;
+            classement[Equipe1].perdu += 1;
+        } else {
+            classement[Equipe1].points += 1;
+            classement[Equipe2].points += 1;
+            classement[Equipe1].nul += 1;
+            classement[Equipe2].nul += 1;
+        }
+
+        classement[Equipe1].differenceButs = classement[Equipe1].butsPour - classement[Equipe1].butsContre;
+        classement[Equipe2].differenceButs = classement[Equipe2].butsPour - classement[Equipe2].butsContre;
+    });
+
+    const classementArray = Object.values(classement);
+
+    classementArray.sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.differenceButs !== a.differenceButs) return b.differenceButs - a.differenceButs;
+        return b.butsPour - a.butsPour;
+    });
+
+    // On ajoute le rang ici
+    classementArray.forEach((equipe, index) => {
+        equipe.rang = index + 1;
+    });
+
+    return classementArray;
+}
+
 // Routes pour les classements
 app.get('/classement', (req, res) => {
     const query = `
@@ -565,15 +850,13 @@ app.get('/admin/classement', (req, res) => {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 app.post('/admin/classement', (req, res) => {
     const { nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs } = req.body;
-    
+
     console.log("Données reçues pour le classement :", req.body);
-    
-    // Vérification que les données requises sont fournies
+
     if (!nom || typeof nom !== 'string' || nom.trim() === '') {
         return res.status(400).json({ error: "Le nom de l'équipe est requis et doit être une chaîne de caractères valide." });
     }
-    
-    // Convertir les valeurs numériques si elles sont envoyées comme des chaînes
+
     const matchsJouesNum = parseInt(matchsJoues) || 0;
     const gagneNum = parseInt(gagne) || 0;
     const perduNum = parseInt(perdu) || 0;
@@ -582,39 +865,99 @@ app.post('/admin/classement', (req, res) => {
     const butsPourNum = parseInt(butsPour) || 0;
     const butsContreNum = parseInt(butsContre) || 0;
     const differenceButsNum = parseInt(differenceButs) || 0;
-    
-    const query = "INSERT INTO Classement (nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    bddConnection.query(query, [
-        nom, 
-        matchsJouesNum, 
-        gagneNum, 
-        perduNum, 
-        nulNum, 
-        pointsNum, 
-        butsPourNum, 
-        butsContreNum, 
+
+    const insertQuery = `
+        INSERT INTO Classement (nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    bddConnection.query(insertQuery, [
+        nom,
+        matchsJouesNum,
+        gagneNum,
+        perduNum,
+        nulNum,
+        pointsNum,
+        butsPourNum,
+        butsContreNum,
         differenceButsNum
     ], (err, result) => {
         if (err) {
             console.error("Erreur MySQL lors de l'ajout du classement :", err);
             return res.status(500).json({ error: "Erreur lors de l'ajout du classement" });
         }
-        console.log("Classement ajouté avec succès, ID:", result.insertId);
-        res.status(201).json({ 
-            message: "Classement ajouté avec succès !",
-            id: result.insertId,
-            equipe: nom,
-            stats: {
-                matchsJoues: matchsJouesNum,
-                gagne: gagneNum,
-                perdu: perduNum,
-                nul: nulNum,
-                points: pointsNum,
-                butsPour: butsPourNum,
-                butsContre: butsContreNum,
-                differenceButs: differenceButsNum
+
+        const newId = result.insertId;
+
+        const classementQuery = `
+            SELECT id, nom, points, differenceButs
+            FROM Classement
+            ORDER BY points DESC, differenceButs DESC
+        `;
+
+        bddConnection.query(classementQuery, (err, rows) => {
+            if (err) {
+                console.error("Erreur lors de la récupération du classement :", err);
+                return res.status(500).json({ error: "Erreur lors du calcul du rang" });
             }
+
+            const rang = rows.findIndex(equipe => equipe.id === newId) + 1;
+
+            // Mise à jour du rang dans la BDD
+            const updateRangQuery = `UPDATE Classement SET rang = ? WHERE id = ?`;
+
+            bddConnection.query(updateRangQuery, [rang, newId], (err) => {
+                if (err) {
+                    console.error("Erreur lors de la mise à jour du rang :", err);
+                    return res.status(500).json({ error: "Erreur lors de la mise à jour du rang" });
+                }
+
+                res.status(201).json({
+                    message: "Classement ajouté avec succès !",
+                    id: newId,
+                    equipe: nom,
+                    rang: rang,
+                    stats: {
+                        matchsJoues: matchsJouesNum,
+                        gagne: gagneNum,
+                        perdu: perduNum,
+                        nul: nulNum,
+                        points: pointsNum,
+                        butsPour: butsPourNum,
+                        butsContre: butsContreNum,
+                        differenceButs: differenceButsNum
+                    }
+                });
+            });
         });
+    });
+});
+
+app.put('/admin/classement/:id', (req, res) => {
+    const id = req.params.id;
+    const { nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs } = req.body;
+    const query = `
+        UPDATE Classement
+        SET nom = ?, matchsJoues = ?, gagne = ?, perdu = ?, nul = ?, points = ?, butsPour = ?, butsContre = ?, differenceButs = ?
+        WHERE id = ?
+    `;
+    bddConnection.query(query, [nom, matchsJoues, gagne, perdu, nul, points, butsPour, butsContre, differenceButs, id], (error, results, fields) => {
+        if (error) throw error;
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ message: "Classement non trouvé" });
+        }
+        res.json({ message: "Classement mis à jour avec succès !" });
+    });
+});
+app.delete('/admin/classement/:id', (req, res) => {
+    const id = req.params.id;
+    const query = "DELETE FROM Classement WHERE id = ?";
+    bddConnection.query(query, [id], (error, results, fields) => {
+        if (error) throw error;
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ message: "Classement non trouvé" });
+        }
+        res.json({ message: "Classement supprimé avec succès !" });
     });
 });
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -648,7 +991,6 @@ app.get('/vainqueur', (req, res) => {
         res.json(vainqueur);
     });
 });
-
 
 app.post('/admin/vainqueur', (req, res) => {
     const { nom } = req.body;
@@ -698,7 +1040,6 @@ app.delete('/admin/vainqueur/:id', (req, res) => {
         res.json({ message: "Vainqueur supprimé avec succès !" });
     });
 });
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Test de requête SQL directe
 bddConnection.query('SELECT * FROM users', (err, results) => {
@@ -709,15 +1050,20 @@ bddConnection.query('SELECT * FROM users', (err, results) => {
     console.log('Résultats de la requête :', results);
 });
 
+// Fermeture de la connexion à la base de données lorsque le processus se termine
+process.on('SIGINT', () => {
+    bddConnection.end(err => {
+        if (err) {
+            console.error('Erreur lors de la fermeture de la connexion à la base de données :', err.stack);
+        } else {
+            console.log('Connexion à la base de données fermée.');
+        }
+        process.exit();
+    });
+});
+
 // Démarrage du serveur
 app.listen(port, () => {
     console.log(`Le serveur est en écoute sur le port ${port}`);
 });
 
-
-
-
-
-
-
-//  eh jonas lis ce message tu vas bien finir par comprendre alors vois classement = rang ok je repete classement = rang merci bon courage 
